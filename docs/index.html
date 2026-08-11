@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>주간 시황 브리핑</title>
+<style>
+  :root{
+    --ma-orange:#FF6600;
+    --ma-orange-tint:#FFE0CC;
+    --ma-orange-pale:#FFF6F0;
+    --ma-blue:#002060;
+    --ma-blue-title:#00427A;
+    --ma-text:#3C3C3B;
+    --ma-text-sub:#595959;
+    --ma-rule:#BFBFBF;
+    --ma-table-head:#7F7F7F;
+    --ma-bg-soft:#ECEFF4;
+    --ma-badge:#E6E6E6;
+    --ma-warn:#C00000;
+
+    --f-bold:"KoPub돋움체_Pro Bold","KoPubWorld돋움체 Bold","맑은 고딕",sans-serif;
+    --f-body:"KoPub돋움체_Pro Medium","KoPubWorld돋움체 Medium","맑은 고딕",sans-serif;
+    --f-light:"KoPub돋움체_Pro Light","KoPubWorld돋움체 Light","맑은 고딕",sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0; background:#fff; color:var(--ma-text);
+    font-family:var(--f-body); line-height:1.42;
+  }
+  .wrap{ max-width:960px; margin:0 auto; padding:0 24px; }
+
+  /* ---------- Sticky quick nav ---------- */
+  .quicknav{
+    position:sticky; top:0; z-index:50;
+    background:#fff; border-bottom:1px solid var(--ma-rule);
+  }
+  .quicknav .inner{
+    max-width:960px; margin:0 auto; padding:0 24px;
+    display:flex; align-items:center; gap:4px;
+    height:42px; overflow-x:auto;
+  }
+  .quicknav .brand{
+    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-blue);
+    padding-right:12px; margin-right:8px; border-right:1px solid var(--ma-rule);
+    white-space:nowrap;
+  }
+  .quicknav a{
+    font-family:var(--f-body); font-size:12.5px; color:var(--ma-text-sub);
+    text-decoration:none; padding:5px 11px; border-radius:16px;
+    white-space:nowrap; transition:background .15s, color .15s;
+  }
+  .quicknav a:hover{ background:var(--ma-bg-soft); color:var(--ma-text); }
+  .quicknav a.active{ background:var(--ma-blue); color:#fff; }
+
+  /* ---------- Hero ---------- */
+  .hero{ padding:22px 0 12px 0; }
+  .hero .eyebrow{
+    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-orange);
+    letter-spacing:.02em; margin-bottom:5px;
+  }
+  .hero .week{
+    font-family:var(--f-light); font-size:13px; color:var(--ma-text-sub);
+    margin-bottom:10px;
+  }
+  .hero h1{
+    font-family:var(--f-bold); color:var(--ma-blue);
+    font-size:clamp(23px,3.6vw,34px); line-height:1.22; margin:0 0 6px 0;
+  }
+  .hero .sub{
+    font-family:var(--f-body); font-size:15px; color:var(--ma-text); max-width:680px;
+  }
+
+  /* ---------- TL;DR summary cards ---------- */
+  .summary-grid{
+    display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+    margin-top:14px;
+  }
+  @media (max-width:760px){ .summary-grid{ grid-template-columns:repeat(2,1fr); } }
+  .scard{
+    background:var(--ma-bg-soft); padding:10px 12px 9px 12px; border-left:3px solid var(--ma-blue);
+  }
+  .scard .slabel{ font-family:var(--f-light); font-size:11.5px; color:var(--ma-text-sub); margin-bottom:3px; }
+  .scard .sval{ font-family:var(--f-bold); font-size:17px; color:var(--ma-text); }
+  .scard .schg{ font-family:var(--f-bold); font-size:12.5px; margin-top:2px; }
+  .schg.up{ color:var(--ma-blue-title); }
+  .schg.down{ color:var(--ma-warn); }
+  .schg.flat{ color:var(--ma-text-sub); }
+
+  /* ---------- Section shell ---------- */
+  section.block{ padding:24px 0 4px 0; scroll-margin-top:52px; }
+  .block .kicker{
+    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-orange);
+    margin-bottom:3px;
+  }
+  .block h2{
+    font-family:var(--f-bold); color:var(--ma-blue);
+    font-size:clamp(19px,2.3vw,24px); margin:0 0 4px 0;
+  }
+  .block .desc{
+    font-family:var(--f-light); font-size:13.5px; color:var(--ma-text-sub);
+    margin-bottom:12px;
+  }
+
+  /* reveal-on-scroll */
+  .reveal{ opacity:0; transform:translateY(10px); transition:opacity .4s ease, transform .4s ease; }
+  .reveal.in{ opacity:1; transform:translateY(0); }
+  @media (prefers-reduced-motion: reduce){ .reveal{ opacity:1; transform:none; transition:none; } }
+
+  /* ---------- Market rows w/ bar viz ---------- */
+  .mrow{
+    display:grid; grid-template-columns:1.3fr .9fr 1.4fr 2.2fr;
+    align-items:center; gap:12px;
+    padding:8px 0; border-bottom:1px solid var(--ma-rule);
+  }
+  .mrow:first-child{ border-top:1px solid var(--ma-rule); }
+  @media (max-width:700px){
+    .mrow{ grid-template-columns:1fr 1fr; row-gap:4px; }
+    .mrow .bar-cell{ grid-column:1/-1; order:3; }
+    .mrow .comment{ grid-column:1/-1; order:4; }
+  }
+  .mrow .name{ font-family:var(--f-bold); font-size:14px; color:var(--ma-text); }
+  .mrow .val{ font-family:var(--f-body); font-size:13px; color:var(--ma-text-sub); }
+  .mrow .chg{ font-family:var(--f-bold); font-size:13.5px; }
+  .mrow .comment{ font-family:var(--f-body); font-size:12.5px; color:var(--ma-text); }
+  .bar-cell{ display:flex; align-items:center; gap:8px; }
+  .bar-track{ flex:1; height:6px; background:var(--ma-badge); position:relative; }
+  .bar-fill{ position:absolute; top:0; bottom:0; }
+  .bar-fill.up{ left:50%; background:var(--ma-blue-title); }
+  .bar-fill.down{ right:50%; background:var(--ma-warn); }
+  .bar-mid{ position:absolute; left:50%; top:-3px; bottom:-3px; width:1px; background:var(--ma-rule); }
+
+  /* ---------- Sparkline cards (금리/금) ---------- */
+  .spark-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
+  @media (max-width:700px){ .spark-grid{ grid-template-columns:1fr; } }
+  .spark-card{ border:1px solid var(--ma-rule); padding:11px 13px 9px 13px; }
+  .spark-title{ font-family:var(--f-bold); font-size:12.5px; color:var(--ma-blue); margin-bottom:6px; }
+  .spark-vals{ display:flex; flex-direction:column; gap:2px; margin-bottom:6px; }
+  .spark-vals > div{ display:flex; justify-content:space-between; align-items:baseline; }
+  .spv-label{ font-family:var(--f-light); font-size:11.5px; color:var(--ma-text-sub); }
+  .spv-num{ font-family:var(--f-bold); font-size:14px; color:var(--ma-text); }
+  .spark-chart{ margin:3px 0 4px 0; }
+  .spark-foot{ font-family:var(--f-light); font-size:10.5px; color:var(--ma-text-sub); }
+  .spark-foot em{ font-style:normal; color:var(--ma-text-sub); }
+
+  .fx-heading{
+    font-family:var(--f-bold); font-size:13px; color:var(--ma-text);
+    margin-top:16px; margin-bottom:6px;
+  }
+  .fx-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  @media (max-width:700px){ .fx-grid{ grid-template-columns:1fr; } }
+
+  /* ---------- sector chips ---------- */
+  .sector-grid{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px; }
+  @media (max-width:700px){ .sector-grid{ grid-template-columns:1fr; } }
+  .sector-col .col-title{ font-family:var(--f-bold); font-size:12.5px; margin-bottom:6px; }
+  .sector-col.up .col-title{ color:var(--ma-blue-title); }
+  .sector-col.down .col-title{ color:var(--ma-warn); }
+  .chip-list{ display:flex; flex-direction:column; gap:5px; }
+  .chip{
+    display:flex; justify-content:space-between; align-items:center;
+    background:var(--ma-bg-soft); padding:6px 11px; font-size:13px;
+  }
+  .chip .cname{ font-family:var(--f-body); color:var(--ma-text); }
+  .chip .cval{ font-family:var(--f-bold); font-size:12.5px; }
+  .chip .cval.up{ color:var(--ma-blue-title); }
+  .chip .cval.down{ color:var(--ma-warn); }
+
+  /* ---------- flow cards (수급) ---------- */
+  .flow-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:4px; }
+  @media (max-width:700px){ .flow-grid{ grid-template-columns:1fr; } }
+  .flow-card{ border:1px solid var(--ma-rule); padding:9px 12px; }
+  .flow-card .fname{ font-family:var(--f-bold); font-size:12.5px; color:var(--ma-text-sub); margin-bottom:3px; }
+  .flow-card .fval{ font-family:var(--f-bold); font-size:18px; }
+  .flow-card .fval.up{ color:var(--ma-blue-title); }
+  .flow-card .fval.down{ color:var(--ma-warn); }
+  .flow-card .ftop{ font-family:var(--f-light); font-size:11.5px; color:var(--ma-text-sub); margin-top:3px; }
+
+  /* ---------- Timeline (issues) ---------- */
+  .tl{ display:flex; flex-direction:column; }
+  .tl-item{
+    display:grid; grid-template-columns:88px 54px 1fr; gap:12px;
+    padding:9px 0; border-bottom:1px solid var(--ma-rule); align-items:flex-start;
+  }
+  .tl-item:first-child{ border-top:1px solid var(--ma-rule); }
+  @media (max-width:700px){ .tl-item{ grid-template-columns:76px 46px 1fr; } }
+  .tl-date{ font-family:var(--f-bold); font-size:12.5px; color:var(--ma-blue); padding-top:1px; }
+  .tl-imp{
+    font-family:var(--f-bold); font-size:10.5px; text-align:center;
+    padding:2px 0; border-radius:2px; color:#fff; height:fit-content;
+  }
+  .tl-imp.high{ background:var(--ma-warn); }
+  .tl-imp.mid{ background:var(--ma-orange); }
+  .tl-imp.low{ background:var(--ma-table-head); }
+  .tl-title{ font-family:var(--f-bold); font-size:14px; color:var(--ma-text); }
+  .tl-desc{ font-family:var(--f-light); font-size:12.5px; color:var(--ma-text-sub); margin-top:2px; }
+
+  /* ---------- Implication cards ---------- */
+  .impl-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:2px; }
+  @media (max-width:700px){ .impl-grid{ grid-template-columns:1fr; } }
+  .impl-card{ border:1px solid var(--ma-rule); padding:12px 13px; display:flex; flex-direction:column; gap:5px; }
+  .impl-card .icat{
+    display:inline-block; font-family:var(--f-bold); font-size:11px; color:#fff;
+    background:var(--ma-table-head); padding:2px 9px; border-radius:2px; width:fit-content;
+  }
+  .impl-card .itext{ font-family:var(--f-body); font-size:13.5px; color:var(--ma-text); }
+  .impl-card .iaction{
+    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-blue);
+    padding-top:5px; border-top:1px dashed var(--ma-rule);
+  }
+  .impl-card .iaction .arw{ color:var(--ma-orange); margin-right:5px; }
+
+  .highlight-box{
+    background:var(--ma-orange-tint); padding:12px 16px; margin-top:12px;
+    font-family:var(--f-bold); font-size:14.5px; color:var(--ma-text);
+  }
+  .highlight-box .arw{ color:var(--ma-orange); margin-right:6px; }
+
+  /* ---------- Closing ---------- */
+  .closing{ padding:26px 0 30px 0; }
+  .closing .tag{
+    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-orange);
+    letter-spacing:.05em; margin-bottom:6px;
+  }
+  .closing h2{
+    font-family:var(--f-bold); color:var(--ma-blue);
+    font-size:clamp(20px,2.8vw,26px); margin:0 0 10px 0; max-width:760px;
+  }
+  .checklist{ display:flex; flex-direction:column; gap:0; max-width:760px; }
+  .check-item{
+    display:flex; gap:10px; align-items:flex-start;
+    padding:9px 0; border-top:1px solid var(--ma-rule);
+  }
+  .checklist .check-item:last-child{ border-bottom:1px solid var(--ma-rule); }
+  .check-num{
+    flex:0 0 auto; width:21px; height:21px; border-radius:50%;
+    background:var(--ma-blue); color:#fff; font-family:var(--f-bold); font-size:11.5px;
+    display:flex; align-items:center; justify-content:center; margin-top:1px;
+  }
+  .check-text{ font-family:var(--f-body); font-size:14px; color:var(--ma-text); }
+
+  footer{
+    border-top:1px solid var(--ma-rule); padding:12px 0 20px 0;
+    font-family:var(--f-light); font-size:11px; color:var(--ma-text-sub);
+    display:flex; justify-content:space-between;
+  }
+</style>
+</head>
+<body>
+
+<nav class="quicknav">
+  <div class="inner">
+    <span class="brand">디지털PB센터</span>
+    <a href="#overseas">해외시황</a>
+    <a href="#domestic">국내시황</a>
+    <a href="#issues">주요이슈</a>
+    <a href="#implications">연계시사점</a>
+    <a href="#direction">영업방향</a>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <!-- ================= HERO / TL;DR ================= -->
+  <section class="hero" id="top">
+    <div class="eyebrow">주간회의 시황 브리핑</div>
+    <div class="week" id="weekLabel"></div>
+    <h1 id="heroHeadline"></h1>
+    <div class="sub" id="heroSub"></div>
+    <div class="summary-grid" id="summaryGrid"></div>
+  </section>
+
+  <!-- ================= 해외 시황 ================= -->
+  <section class="block reveal" id="overseas">
+    <div class="kicker">GLOBAL MARKET</div>
+    <h2>해외 시황</h2>
+    <div class="desc" id="overseasDesc"></div>
+    <div id="overseasRows"></div>
+    <div class="spark-grid" id="sparkGrid"></div>
+    <div class="fx-heading">환율</div>
+    <div class="fx-grid" id="fxGrid"></div>
+  </section>
+
+  <!-- ================= 국내 시황 ================= -->
+  <section class="block reveal" id="domestic">
+    <div class="kicker">DOMESTIC MARKET</div>
+    <h2>국내 시황</h2>
+    <div class="desc" id="domesticDesc"></div>
+    <div id="domesticRows"></div>
+
+    <div style="margin-top:30px; font-family:var(--f-bold); font-size:14.5px; color:var(--ma-text);">수급 동향 (순매수)</div>
+    <div class="flow-grid" id="flowGrid"></div>
+
+    <div style="margin-top:30px; font-family:var(--f-bold); font-size:14.5px; color:var(--ma-text);">업종 Top Movers</div>
+    <div class="sector-grid" id="sectorGrid"></div>
+  </section>
+
+  <!-- ================= 주요 이슈 ================= -->
+  <section class="block reveal" id="issues">
+    <div class="kicker">THIS WEEK'S AGENDA</div>
+    <h2>이번주 주요 이슈 · 일정</h2>
+    <div class="desc" id="issuesDesc"></div>
+    <div class="tl" id="issuesList"></div>
+  </section>
+
+  <!-- ================= 연계 시사점 ================= -->
+  <section class="block reveal" id="implications">
+    <div class="kicker">SO WHAT — 우리 업무 연계</div>
+    <h2 id="implHeadline"></h2>
+    <div class="desc" id="implDesc"></div>
+    <div class="impl-grid" id="implGrid"></div>
+    <div class="highlight-box" id="implHighlight"></div>
+  </section>
+
+  <!-- ================= 영업방향 ================= -->
+  <section class="closing reveal" id="direction">
+    <div class="tag" id="dirTag"></div>
+    <h2 id="dirHeadline"></h2>
+    <div class="checklist" id="dirChecklist"></div>
+  </section>
+
+  <footer>
+    <span id="footerLeft">디지털PB센터 주간회의 · Mirae Asset</span>
+    <span id="footerRight"></span>
+  </footer>
+
+</div>
+
+<script>
+/* =====================================================================
+   [사용 안내]
+   1) 아래 DATA 값만 매주 교체하면 됩니다. (레이아웃/CSS는 그대로 두세요)
+   2) 대괄호 [ ] 로 표시된 값은 예시입니다. 실제 수치·코멘트로 교체해 주세요.
+   3) pct 필드는 등락폭 시각화 막대에 쓰이는 숫자입니다 (예: 1.2, -0.8).
+   4) importance: "high" | "mid" | "low"  → 이슈 중요도 배지 색상
+
+   [데이터 소스 / 자동화 가이드 - 내부용이라 스크래핑으로 충분]
+   - 해외지수·환율·금 등: Yahoo Finance 또는 네이버 증권 스크래핑
+   - 국내지수·수급: 네이버 증권 또는 KRX 정보데이터시스템
+   - 매일 08:00 KST 갱신 권장 (예: GitHub Actions cron으로 스크래핑 → 이 파일의 DATA 값 갱신)
+   - 장 시작 전 이슈 발생 등으로 당일 데이터 수집이 안 될 경우, 전일 종가 기준으로 표시해도 무방
+     (REPORT_DATE 문구에 "전일 종가 기준"처럼 기준시점만 명확히 표기)
+===================================================================== */
+
+const WEEK_LABEL = "2026.08.11(월) ~ 08.15(금)";
+const REPORT_DATE = "기준 2026.08.11(월) 08:00 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
+
+const HERO = {
+  headline: "[이번주 시황을 한 문장으로 요약]",
+  sub: "예) 변동성 확대 속 코스피 박스권 등락, 미 FOMC 앞두고 관망심리 우세"
+};
+
+// [AUTO:SUMMARY_START] -- 아래 2개 항목은 update_market_data.py가 매일 자동 갱신합니다. 직접 수정하지 마세요.
+const SUMMARY_AUTO = [
+  { label: "코스피", value: "[2,850pt]", chg: "[▲ 0.0%]", dir: "up" },
+  { label: "미 10년물 금리", value: "[0.00%]", chg: "[-0.00%p]", dir: "down" }
+];
+// [AUTO:SUMMARY_END]
+
+// [MANUAL] -- 아래 2개 항목은 매주 직접 수정하세요.
+const SUMMARY_MANUAL = [
+  { label: "이번주 최대 이벤트", value: "[FOMC]", chg: "[8/13(수)]", dir: "flat" },
+  { label: "이번주 Focus", value: "[카이로스 모니터링]", chg: "", dir: "flat" }
+];
+const SUMMARY_CARDS = SUMMARY_AUTO.concat(SUMMARY_MANUAL);
+
+
+const OVERSEAS_DESC = "전주 대비 주요 변동 요인 중심으로 점검";
+// [AUTO:OVERSEAS_START] -- update_market_data.py가 value/chg/pct를 자동 갱신합니다. comment는 직접 작성하세요.
+const OVERSEAS = [
+  { name: "S&P 500",        value: "[0,000pt]",  chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "나스닥",          value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "다우존스",        value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "유럽 STOXX600",   value: "[000pt]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "일본 니케이225",  value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "중국 상해종합",   value: "[0,000pt]",  chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "달러인덱스(DXY)", value: "[00.0]",     chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "WTI 유가",        value: "[00.0$]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
+];
+// [AUTO:OVERSEAS_END]
+
+/* ---- 금리 카드 (10Y·2Y·장단기 스프레드) : 3년 월간 스프레드(10Y-2Y) 예시 곡선, 0 기준선 ---- */
+// [AUTO:RATE_START]
+const RATE_CARD = {
+  y10: "[0.00%]",
+  y2: "[0.00%]",
+  spreadValue: 0.00,          // 예: 10Y-2Y = +0.00%p  (마이너스면 역전)
+  spreadLabel: "[+0.00%p]",
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    -0.5,-0.6,-0.7,-0.8,-0.9,-1.0,-0.9,-0.8,-0.7,-0.6,-0.5,-0.4,
+    -0.3,-0.2,-0.1, 0.0, 0.05,0.1, 0.15,0.1, 0.05,0.0,-0.05,0.0,
+     0.05,0.1, 0.15, 0.2, 0.15, 0.1, 0.15, 0.2, 0.25, 0.2, 0.15, 0.00
+  ]
+};
+// [AUTO:RATE_END]
+
+/* ---- 금(Gold) 카드 : 3년 월간 가격 예시 곡선 (반도체중소형주 대시보드와 동일한 간이차트 방식) ---- */
+// [AUTO:GOLD_START]
+const GOLD_CARD = {
+  price: "[2,650.0$]",
+  chg: "[+0.0%]",
+  pct: 0,
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    1850,1870,1900,1890,1920,1950,1980,1970,2000,2030,2010,2040,
+    2070,2100,2080,2110,2150,2180,2200,2230,2210,2250,2280,2300,
+    2330,2360,2340,2380,2410,2440,2460,2490,2510,2540,2560,2600
+  ]
+};
+// [AUTO:GOLD_END]
+
+/* ---- 환율 카드 (원/달러 · 엔/달러 · 유로/달러) : 3년 월간 예시 곡선 ---- */
+// [AUTO:FX_START]
+const FX = [
+  { name: "원/달러 (USD-KRW)", value: "[1,320.0원]", chg: "[+0.0%]", pct: 0, history: [
+    1290,1295,1300,1310,1305,1315,1320,1330,1325,1335,1340,1330,
+    1320,1310,1315,1325,1335,1340,1345,1330,1320,1330,1340,1350,
+    1345,1335,1325,1330,1340,1345,1350,1355,1345,1335,1330,1320
+  ]},
+  { name: "엔/달러 (USD-JPY)", value: "[150.0엔]", chg: "[-0.0%]", pct: 0, history: [
+    131,133,135,138,140,142,145,147,148,150,149,147,
+    145,143,141,140,142,144,146,148,150,152,151,149,
+    147,145,144,146,148,150,152,151,149,148,150,151
+  ]},
+  { name: "유로/달러 (EUR-USD)", value: "[1.08]", chg: "[+0.0%]", pct: 0, history: [
+    1.06,1.07,1.05,1.04,1.03,1.05,1.07,1.08,1.09,1.07,1.06,1.05,
+    1.06,1.08,1.09,1.10,1.09,1.08,1.07,1.06,1.07,1.08,1.09,1.10,
+    1.09,1.08,1.07,1.08,1.09,1.10,1.09,1.08,1.07,1.08,1.09,1.08
+  ]}
+];
+// [AUTO:FX_END]
+
+const DOMESTIC_DESC = "지수·수급·업종 흐름을 함께 확인";
+// [AUTO:DOMESTIC_START] -- pykrx/네이버 스크래핑으로 자동 갱신
+const DOMESTIC_INDEX = [
+  { name: "코스피", value: "[2,850pt]", chg: "[▲ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "코스닥", value: "[800pt]",   chg: "[▼ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
+];
+// [AUTO:DOMESTIC_END]
+
+// [AUTO:FLOW_START] -- pykrx 투자자별 매매동향으로 자동 갱신, top(상위 업종/종목)은 직접 채워도 됨
+const FLOW = [
+  { name: "외국인", value: "[+0,000억]", dir: "up",   top: "[순매수 상위 업종/종목]" },
+  { name: "기관",   value: "[-0,000억]", dir: "down", top: "[순매도 상위 업종/종목]" },
+  { name: "개인",   value: "[+0,000억]", dir: "up",   top: "[순매수 상위 업종/종목]" }
+];
+// [AUTO:FLOW_END]
+
+const SECTORS = {
+  up:   [ { name: "[업종명]", chg: "[+0.0%]" }, { name: "[업종명]", chg: "[+0.0%]" }, { name: "[업종명]", chg: "[+0.0%]" } ],
+  down: [ { name: "[업종명]", chg: "[-0.0%]" }, { name: "[업종명]", chg: "[-0.0%]" }, { name: "[업종명]", chg: "[-0.0%]" } ]
+};
+
+const ISSUES_DESC = "발표 시점 기준 예정된 주요 이벤트 (중요도: 상/중/하)";
+const ISSUES = [
+  { date: "8/12(화)", importance: "mid",  title: "[경제지표/이벤트명]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/13(수)", importance: "high", title: "[FOMC / 금통위 등]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/14(목)", importance: "mid",  title: "[주요 기업 실적발표]",  desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/15(금)", importance: "low",  title: "[기타 이슈]",          desc: "[코멘트 및 시장 영향 포인트]" }
+];
+
+const IMPL_HEADLINE = "시황이 우리 업무에 주는 시사점";
+const IMPL_DESC = "다이렉트 고객 · 카이로스 멤버십 · 세일즈 포인트로 연결";
+const IMPLICATIONS = [
+  { cat: "리스크관리", text: "[변동성 확대 시 카이로스 멤버십 반대매매·이탈 모니터링 강화 필요 여부]", action: "3대 모니터링 체계 점검 강화" },
+  { cat: "세일즈 기회", text: "[금리/섹터 이슈와 연계한 랩상품·상품 세일즈 포인트]", action: "Best Selection 랩상품 연계 제안" },
+  { cat: "VOC 영향", text: "[세제·이슈 관련 다이렉트 고객 문의 증가 예상 여부]", action: "세무 VOC 대응 체계 점검" },
+  { cat: "세미나 연계", text: "[이번주 이슈를 다음 온라인세미나 주제로 연결할 여지]", action: "후속 세미나 기획에 반영" }
+];
+const IMPL_HIGHLIGHT = "[이번주 가장 중요한 연계 포인트 한 줄 결론]";
+
+const DIRECTION = {
+  tag: "THIS WEEK FOCUS",
+  headline: "[이번주 영업방향을 한 문장으로]",
+  checklist: [
+    "[카이로스 멤버십 리스크관리 모니터링 최우선 점검]",
+    "[온라인세미나 후속마케팅 대상 고객 응대 병행]",
+    "[세무 VOC 대응 프로세스 개선 협의체 진행 상황 공유]"
+  ]
+};
+
+/* ===================================================================== */
+
+function bar(pct){
+  const maxScale = 3; // ±3% 를 막대 100% 기준으로
+  const w = Math.min(Math.abs(pct)/maxScale,1)*50;
+  const dir = pct >= 0 ? "up" : "down";
+  const style = dir === "up" ? `width:${w}%` : `width:${w}%`;
+  return `<div class="bar-cell">
+      <div class="bar-track">
+        <div class="bar-mid"></div>
+        <div class="bar-fill ${dir}" style="${style}"></div>
+      </div>
+    </div>`;
+}
+function dirClass(chgStr){
+  if(chgStr.includes("▲") || chgStr.includes("+")) return "up";
+  if(chgStr.includes("▼") || chgStr.includes("-")) return "down";
+  return "flat";
+}
+function stripArrow(s){ return s.replace(/[▲▼]/g,""); }
+
+/* ---- 3년 간이차트 (sparkline) ----
+   values: 숫자 배열, opts: { baseline?: number, color?: string, warnBelowBaseline?: boolean } */
+function sparkline(values, opts = {}){
+  const w = 220, h = 56, pad = 4;
+  const hasBase = typeof opts.baseline === "number";
+  const domain = hasBase ? values.concat([opts.baseline]) : values;
+  let min = Math.min(...domain), max = Math.max(...domain);
+  if(min === max){ min -= 1; max += 1; }
+  const xStep = (w - pad*2) / (values.length - 1);
+  const yOf = (v) => h - pad - ((v - min) / (max - min)) * (h - pad*2);
+
+  const last = values[values.length-1];
+  const lineColor = opts.warnBelowBaseline && hasBase && last < opts.baseline ? "var(--ma-warn)" : (opts.color || "var(--ma-blue-title)");
+
+  const pts = values.map((v,i) => `${(pad+i*xStep).toFixed(1)},${yOf(v).toFixed(1)}`).join(" ");
+  const lastX = (pad+(values.length-1)*xStep).toFixed(1);
+  const lastY = yOf(last).toFixed(1);
+
+  let baseLine = "";
+  if(hasBase){
+    const by = yOf(opts.baseline).toFixed(1);
+    baseLine = `<line x1="${pad}" y1="${by}" x2="${w-pad}" y2="${by}" stroke="var(--ma-rule)" stroke-width="1" stroke-dasharray="3,3" />`;
+  }
+
+  return `<svg viewBox="0 0 ${w} ${h}" width="100%" height="${h}" preserveAspectRatio="none" style="overflow:visible;">
+      ${baseLine}
+      <polyline points="${pts}" fill="none" stroke="${lineColor}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" />
+      <circle cx="${lastX}" cy="${lastY}" r="3.2" fill="var(--ma-orange)" />
+    </svg>`;
+}
+
+function renderMarketRow(r){
+  return `<div class="mrow">
+      <div class="name">${r.name}</div>
+      <div class="val">${r.value}</div>
+      ${bar(r.pct)}
+      <div class="comment"><span class="chg" style="color:${r.pct>=0 ? 'var(--ma-blue-title)':'var(--ma-warn)'}">${stripArrow(r.chg)}</span> &nbsp;${r.comment}</div>
+    </div>`;
+}
+
+function renderIssue(it){
+  const label = { high:"상", mid:"중", low:"하" }[it.importance] || "중";
+  return `<div class="tl-item">
+      <div class="tl-date">${it.date}</div>
+      <div class="tl-imp ${it.importance}">${label}</div>
+      <div>
+        <div class="tl-title">${it.title}</div>
+        <div class="tl-desc">${it.desc}</div>
+      </div>
+    </div>`;
+}
+
+function renderImplCard(c){
+  return `<div class="impl-card">
+      <span class="icat">${c.cat}</span>
+      <div class="itext">${c.text}</div>
+      <div class="iaction"><span class="arw">➡</span>${c.action}</div>
+    </div>`;
+}
+
+function renderRateCard(){
+  const spreadPositive = RATE_CARD.spreadValue >= 0;
+  return `<div class="spark-card">
+      <div class="spark-title">미 국채금리 (10Y · 2Y)</div>
+      <div class="spark-vals">
+        <div><span class="spv-label">10년물</span><span class="spv-num">${RATE_CARD.y10}</span></div>
+        <div><span class="spv-label">2년물</span><span class="spv-num">${RATE_CARD.y2}</span></div>
+        <div><span class="spv-label">장단기 스프레드(10Y-2Y)</span><span class="spv-num" style="color:${spreadPositive ? 'var(--ma-blue-title)' : 'var(--ma-warn)'}">${RATE_CARD.spreadLabel}</span></div>
+      </div>
+      <div class="spark-chart">${sparkline(RATE_CARD.history, { baseline: 0, warnBelowBaseline: true })}</div>
+      <div class="spark-foot">3년 스프레드 추이 · 0 기준선 아래 = 장단기 금리차 역전 · <em>예시 데이터, 실제 수치로 교체</em></div>
+    </div>`;
+}
+
+function renderGoldCard(){
+  return `<div class="spark-card">
+      <div class="spark-title">금(Gold) 가격</div>
+      <div class="spark-vals">
+        <div><span class="spv-label">현재가</span><span class="spv-num">${GOLD_CARD.price}</span></div>
+        <div><span class="spv-label">전주 대비</span><span class="spv-num" style="color:${GOLD_CARD.pct>=0 ? 'var(--ma-blue-title)':'var(--ma-warn)'}">${GOLD_CARD.chg}</span></div>
+      </div>
+      <div class="spark-chart">${sparkline(GOLD_CARD.history, { color: "var(--ma-blue-title)" })}</div>
+      <div class="spark-foot">3년 가격 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
+    </div>`;
+}
+
+function renderFxCard(f){
+  return `<div class="spark-card">
+      <div class="spark-title">${f.name}</div>
+      <div class="spark-vals">
+        <div><span class="spv-label">현재가</span><span class="spv-num">${f.value}</span></div>
+        <div><span class="spv-label">전일 대비</span><span class="spv-num" style="color:${f.pct>=0 ? 'var(--ma-blue-title)':'var(--ma-warn)'}">${f.chg}</span></div>
+      </div>
+      <div class="spark-chart">${sparkline(f.history, { color: "var(--ma-blue-title)" })}</div>
+      <div class="spark-foot">3년 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
+    </div>`;
+}
+
+function build(){
+  document.getElementById("weekLabel").textContent = WEEK_LABEL;
+  document.getElementById("heroHeadline").textContent = HERO.headline;
+  document.getElementById("heroSub").textContent = HERO.sub;
+
+  document.getElementById("summaryGrid").innerHTML = SUMMARY_CARDS.map(s => `
+    <div class="scard">
+      <div class="slabel">${s.label}</div>
+      <div class="sval">${s.value}</div>
+      ${s.chg ? `<div class="schg ${s.dir}">${s.chg}</div>` : ""}
+    </div>`).join("");
+
+  document.getElementById("overseasDesc").textContent = OVERSEAS_DESC;
+  document.getElementById("overseasRows").innerHTML = OVERSEAS.map(renderMarketRow).join("");
+  document.getElementById("sparkGrid").innerHTML = renderRateCard() + renderGoldCard();
+  document.getElementById("fxGrid").innerHTML = FX.map(renderFxCard).join("");
+
+  document.getElementById("domesticDesc").textContent = DOMESTIC_DESC;
+  document.getElementById("domesticRows").innerHTML = DOMESTIC_INDEX.map(renderMarketRow).join("");
+
+  document.getElementById("flowGrid").innerHTML = FLOW.map(f => `
+    <div class="flow-card">
+      <div class="fname">${f.name}</div>
+      <div class="fval ${f.dir}">${f.value}</div>
+      <div class="ftop">${f.top}</div>
+    </div>`).join("");
+
+  document.getElementById("sectorGrid").innerHTML = `
+    <div class="sector-col up">
+      <div class="col-title">▲ 상승 업종</div>
+      <div class="chip-list">${SECTORS.up.map(s => `<div class="chip"><span class="cname">${s.name}</span><span class="cval up">${s.chg}</span></div>`).join("")}</div>
+    </div>
+    <div class="sector-col down">
+      <div class="col-title">▼ 하락 업종</div>
+      <div class="chip-list">${SECTORS.down.map(s => `<div class="chip"><span class="cname">${s.name}</span><span class="cval down">${s.chg}</span></div>`).join("")}</div>
+    </div>`;
+
+  document.getElementById("issuesDesc").textContent = ISSUES_DESC;
+  document.getElementById("issuesList").innerHTML = ISSUES.map(renderIssue).join("");
+
+  document.getElementById("implHeadline").textContent = IMPL_HEADLINE;
+  document.getElementById("implDesc").textContent = IMPL_DESC;
+  document.getElementById("implGrid").innerHTML = IMPLICATIONS.map(renderImplCard).join("");
+  document.getElementById("implHighlight").innerHTML = `<span class="arw">➡</span>${IMPL_HIGHLIGHT}`;
+
+  document.getElementById("dirTag").textContent = DIRECTION.tag;
+  document.getElementById("dirHeadline").textContent = DIRECTION.headline;
+  document.getElementById("dirChecklist").innerHTML = DIRECTION.checklist.map((t,i) => `
+    <div class="check-item">
+      <div class="check-num">${i+1}</div>
+      <div class="check-text">${t}</div>
+    </div>`).join("");
+
+  document.getElementById("footerRight").textContent = REPORT_DATE;
+}
+
+/* ---- scroll reveal ---- */
+function setupReveal(){
+  const els = document.querySelectorAll(".reveal");
+  if(!("IntersectionObserver" in window)){
+    els.forEach(el => el.classList.add("in"));
+    return;
+  }
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(en => {
+      if(en.isIntersecting){ en.target.classList.add("in"); io.unobserve(en.target); }
+    });
+  }, { threshold: 0.12 });
+  els.forEach(el => io.observe(el));
+}
+
+/* ---- active nav highlight ---- */
+function setupNav(){
+  const links = document.querySelectorAll(".quicknav a");
+  const sections = Array.from(links).map(a => document.querySelector(a.getAttribute("href")));
+  function onScroll(){
+    let idx = 0;
+    const y = window.scrollY + 90;
+    sections.forEach((sec,i) => { if(sec && sec.offsetTop <= y) idx = i; });
+    links.forEach((l,i) => l.classList.toggle("active", i === idx));
+  }
+  window.addEventListener("scroll", onScroll, { passive:true });
+  onScroll();
+}
+
+build();
+setupReveal();
+setupNav();
+</script>
+
+</body>
+</html>
