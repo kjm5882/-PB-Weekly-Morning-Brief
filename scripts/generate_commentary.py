@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML = ROOT / "docs" / "index.html"
 CONTEXT_MD = ROOT / "context" / "business_context.md"
 
-MODEL = "claude-sonnet-4-6"
+MODEL = "claude-sonnet-5"
 
 
 # ---------------------------------------------------------------------------
@@ -93,8 +93,10 @@ def build_data_summary(html: str) -> dict:
 # 2) Claude API 호출
 # ---------------------------------------------------------------------------
 SCHEMA_INSTRUCTIONS = """
-아래 JSON 스키마에 정확히 맞춰서, 다른 설명 없이 JSON 객체 하나만 출력하세요
-(마크다운 코드블록 ```json 도 붙이지 마세요, 순수 JSON 텍스트만).
+필요한 조사(웹검색 등)는 먼저 끝내세요. 조사가 다 끝났으면, 마지막 답변 메시지는
+반드시 아래 JSON 객체 하나로만 시작하고 끝내세요. "이제 정리하겠습니다" 같은 안내
+문장이나 설명을 앞뒤에 절대 붙이지 마세요. 마크다운 코드블록(```)도 쓰지 마세요.
+답변의 첫 글자는 반드시 { 여야 하고 마지막 글자는 반드시 } 여야 합니다.
 
 {
   "hero_headline": "이번주 시황을 한 문장으로 요약 (결론형, 30자 내외)",
@@ -166,9 +168,16 @@ def call_claude(prompt: str) -> str:
 
 def parse_json_response(text: str):
     text = text.strip()
-    # 혹시 코드블록으로 감쌌으면 제거
+    # 코드블록으로 감쌌으면 제거
     text = re.sub(r"^```(?:json)?\s*", "", text)
     text = re.sub(r"\s*```$", "", text)
+
+    # 모델이 JSON 앞뒤로 설명 문장을 덧붙이는 경우가 있어, 가장 바깥쪽 { ... } 만 추출
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        text = text[start:end + 1]
+
     try:
         return json.loads(text)
     except Exception as e:
@@ -276,8 +285,4 @@ def main():
                           build_implications_js(result.get("implications", []), result.get("impl_highlight", "")))
 
     INDEX_HTML.write_text(html, encoding="utf-8")
-    print("== 완료: AI 코멘터리 반영됨 ==")
-
-
-if __name__ == "__main__":
-    main()
+    print("== 완료: AI
