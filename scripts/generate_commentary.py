@@ -28,7 +28,7 @@ ROOT = Path(__file__).resolve().parents[1]
 INDEX_HTML = ROOT / "docs" / "index.html"
 CONTEXT_MD = ROOT / "context" / "business_context.md"
 
-MODEL = "claude-sonnet-5"
+MODEL = "claude-sonnet-4-6"
 
 
 # ---------------------------------------------------------------------------
@@ -286,3 +286,7 @@ def main():
 
     INDEX_HTML.write_text(html, encoding="utf-8")
     print("== 완료: AI 코멘터리 반영됨 ==")
+
+
+if __name__ == "__main__":
+    main()
