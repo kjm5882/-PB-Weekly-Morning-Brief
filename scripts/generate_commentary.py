@@ -285,4 +285,4 @@ def main():
                           build_implications_js(result.get("implications", []), result.get("impl_highlight", "")))
 
     INDEX_HTML.write_text(html, encoding="utf-8")
-    print("== 완료: AI
+    print("== 완료: AI 코멘터리 반영됨 ==")
