@@ -19,8 +19,10 @@ import re
 import sys
 import json
 import datetime as dt
+import os
 from pathlib import Path
 
+import requests
 import yfinance as yf
 
 try:
@@ -48,8 +50,9 @@ OVERSEAS_TICKERS = [
 ]
 
 RATE_TICKERS = {
-    "10y": "^TNX",   # 10년물 (표시값의 10배로 나오므로 /10 처리)
-    "2y":  "^UST2Y", # 2년물 - Yahoo Finance에서 불안정할 수 있음. 안 나오면 FRED(DGS2)로 교체 권장
+    # Yahoo Finance의 국채금리 티커(특히 2년물)는 불안정해서 FRED(연준 공식, 무료, API키 불필요)로 대체
+    "10y": "DGS10",
+    "2y":  "DGS2",
 }
 
 GOLD_TICKER = "GC=F"
@@ -64,6 +67,45 @@ FX_TICKERS = [
 # ---------------------------------------------------------------------------
 # 2) 데이터 수집 유틸
 # ---------------------------------------------------------------------------
+import urllib.request
+import csv
+import io
+
+
+def fetch_fred_series(series_id: str):
+    """FRED(연준 공식) CSV를 API키 없이 받아온다. [(date, value), ...] 반환, 결측치('.')는 제외."""
+    url = f"https://fred.stlouisfed.org/graph/fredgraph.csv?id={series_id}"
+    try:
+        with urllib.request.urlopen(url, timeout=15) as resp:
+            text = resp.read().decode("utf-8")
+        reader = csv.reader(io.StringIO(text))
+        header = next(reader)
+        out = []
+        for row in reader:
+            if len(row) < 2 or row[1] == ".":
+                continue
+            try:
+                out.append((row[0], float(row[1])))
+            except ValueError:
+                continue
+        return out
+    except Exception as e:
+        print(f"  [경고] FRED {series_id} 조회 실패: {e}")
+        return []
+
+
+def monthly_downsample(series, months=36):
+    """일별 시계열에서 각 (연,월)의 마지막 값만 남겨 월별 시계열로 축소, 최근 N개월만 반환."""
+    if not series:
+        return []
+    by_month = {}
+    for date_str, value in series:
+        ym = date_str[:7]  # "YYYY-MM"
+        by_month[ym] = value  # 같은 달이면 뒤에 나온(=더 최근) 값으로 덮어씀
+    values = list(by_month.values())
+    return values[-months:] if len(values) > months else values
+
+
 def fetch_history_3y(ticker: str, interval: str = "1mo"):
     """3년치 히스토리(월봉 기준)를 리스트로 반환. 실패 시 빈 리스트."""
     try:
@@ -119,18 +161,21 @@ def build_overseas():
 
 
 def build_rate_card():
-    last10, _ = fetch_last_and_chg(RATE_TICKERS["10y"])
-    last2, _ = fetch_last_and_chg(RATE_TICKERS["2y"])
-    y10 = (last10 / 10) if last10 else None   # ^TNX는 10배로 표기됨
-    y2 = last2
+    s10 = fetch_fred_series(RATE_TICKERS["10y"])
+    s2 = fetch_fred_series(RATE_TICKERS["2y"])
 
-    hist10 = fetch_history_3y(RATE_TICKERS["10y"])
-    hist2 = fetch_history_3y(RATE_TICKERS["2y"])
+    y10 = s10[-1][1] if s10 else None
+    y2 = s2[-1][1] if s2 else None
+    spread = round(y10 - y2, 3) if (y10 is not None and y2 is not None) else None
+
+    # 3년 월간 스프레드 곡선: 같은 날짜 기준으로 매칭해서 계산
     spread_hist = []
-    if hist10 and hist2 and len(hist10) == len(hist2):
-        spread_hist = [round((a / 10) - b, 3) for a, b in zip(hist10, hist2)]
-
-    spread = round((y10 - y2), 3) if (y10 is not None and y2 is not None) else None
+    if s10 and s2:
+        map10 = dict(s10)
+        map2 = dict(s2)
+        common_dates = sorted(set(map10) & set(map2))
+        merged = [(d, round(map10[d] - map2[d], 3)) for d in common_dates]
+        spread_hist = monthly_downsample(merged, months=36)
 
     return {
         "y10": f"{y10:.2f}%" if y10 is not None else "[N/A]",
@@ -168,25 +213,38 @@ def build_fx():
     return out
 
 
-def build_domestic():
-    """pykrx로 코스피/코스닥 지수 + 수급을 가져온다. pykrx 미설치 시 건너뜀."""
-    if not HAS_PYKRX:
-        print("  [안내] pykrx 미설치로 국내 데이터는 건너뜁니다. (pip install pykrx)")
+def fetch_naver_index(code: str):
+    """네이버 금융에서 코스피/코스닥 지수를 로그인 없이 직접 가져온다.
+    code: 'KOSPI' 또는 'KOSDAQ'
+    반환: (현재가, 등락률%) 또는 (None, None)
+    """
+    import requests
+    url = f"https://finance.naver.com/sise/sise_index.naver?code={code}"
+    headers = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.encoding = "euc-kr"
+        html = resp.text
+
+        m_val = re.search(r'id="now_value">\s*([\d,\.]+)', html)
+        if not m_val:
+            return None, None
+        value = float(m_val.group(1).replace(",", ""))
+
+        # 등락률(%) 추출 - 페이지 구조 변경에 취약할 수 있어 실패해도 지수값은 살린다
+        m_rate = re.search(r'([+-]?\d+\.\d+)%', html)
+        pct = float(m_rate.group(1)) if m_rate else None
+
+        return value, pct
+    except Exception as e:
+        print(f"  [경고] 네이버 {code} 지수 조회 실패: {e}")
         return None, None
 
-    today = dt.datetime.now()
-    # 최근 영업일 찾기 (최대 7일 역산)
-    df_kospi = None
-    for i in range(7):
-        d = (today - dt.timedelta(days=i)).strftime("%Y%m%d")
-        try:
-            df = krx.get_index_ohlcv(d, d, "1001")  # 1001 = 코스피
-            if not df.empty:
-                df_kospi = (d, df)
-                break
-        except Exception:
-            continue
 
+def build_domestic():
+    """1순위: 네이버 금융(로그인 불필요)으로 코스피/코스닥 지수를 가져온다.
+    2순위: pykrx로 수급(외국인/기관/개인)을 가져온다 — 단, 최신 pykrx는 KRX 로그인이 필요해
+    KRX_ID / KRX_PW 환경변수(GitHub Secrets)가 없으면 이 부분은 건너뛴다."""
     domestic_index = [
         {"name": "코스피", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "comment": "[등락 배경 한 줄 코멘트]"},
         {"name": "코스닥", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "comment": "[등락 배경 한 줄 코멘트]"},
@@ -197,50 +255,60 @@ def build_domestic():
         {"name": "개인",   "value": "[N/A]", "dir": "up",   "top": "[순매수 상위 업종/종목]"},
     ]
 
-    if df_kospi:
-        d, df = df_kospi
-        try:
-            close = float(df["종가"].iloc[-1])
-            chg_pct = float(df["등락률"].iloc[-1])
-            domestic_index[0].update({
-                "value": f"{close:,.1f}pt",
-                "chg": fmt_pct(chg_pct),
-                "pct": round(chg_pct, 2),
-            })
-        except Exception as e:
-            print(f"  [경고] 코스피 파싱 실패: {e}")
+    kospi_val, kospi_pct = fetch_naver_index("KOSPI")
+    if kospi_val is not None:
+        domestic_index[0]["value"] = f"{kospi_val:,.1f}pt"
+        if kospi_pct is not None:
+            domestic_index[0]["chg"] = fmt_pct(kospi_pct)
+            domestic_index[0]["pct"] = round(kospi_pct, 2)
 
-        try:
-            df_kosdaq = krx.get_index_ohlcv(d, d, "2001")  # 2001 = 코스닥
-            if not df_kosdaq.empty:
-                close_q = float(df_kosdaq["종가"].iloc[-1])
-                chg_q = float(df_kosdaq["등락률"].iloc[-1])
-                domestic_index[1].update({
-                    "value": f"{close_q:,.1f}pt",
-                    "chg": fmt_pct(chg_q),
-                    "pct": round(chg_q, 2),
-                })
-        except Exception as e:
-            print(f"  [경고] 코스닥 파싱 실패: {e}")
+    kosdaq_val, kosdaq_pct = fetch_naver_index("KOSDAQ")
+    if kosdaq_val is not None:
+        domestic_index[1]["value"] = f"{kosdaq_val:,.1f}pt"
+        if kosdaq_pct is not None:
+            domestic_index[1]["chg"] = fmt_pct(kosdaq_pct)
+            domestic_index[1]["pct"] = round(kosdaq_pct, 2)
 
+    if not HAS_PYKRX:
+        print("  [안내] pykrx 미설치로 수급 데이터는 건너뜁니다.")
+        return domestic_index, flow
+
+    krx_id = os.environ.get("KRX_ID")
+    krx_pw = os.environ.get("KRX_PW")
+    if not (krx_id and krx_pw):
+        print("  [안내] KRX_ID/KRX_PW 미설정으로 수급 데이터는 건너뜁니다. (README 참고)")
+        return domestic_index, flow
+
+    today = dt.datetime.utcnow() + dt.timedelta(hours=9)  # KST 기준으로 명시 (서버는 UTC로 동작)
+    # 최근 영업일 찾기 (최대 7일 역산)
+    d_found = None
+    for i in range(7):
+        d = (today - dt.timedelta(days=i)).strftime("%Y%m%d")
         try:
             df_flow = krx.get_market_trading_value_by_date(d, d, "KOSPI")
-            # 컬럼: 기관합계 / 기타법인 / 개인 / 외국인합계 등 (버전에 따라 상이할 수 있음)
             if not df_flow.empty:
-                row = df_flow.iloc[-1]
-                def fmt_amt(v):
-                    v_eok = v / 100_000_000
-                    sign = "+" if v_eok >= 0 else ""
-                    return f"{sign}{v_eok:,.0f}억"
-                if "외국인합계" in row:
-                    flow[0]["value"] = fmt_amt(row["외국인합계"])
-                    flow[0]["dir"] = "up" if row["외국인합계"] >= 0 else "down"
-                if "기관합계" in row:
-                    flow[1]["value"] = fmt_amt(row["기관합계"])
-                    flow[1]["dir"] = "up" if row["기관합계"] >= 0 else "down"
-                if "개인" in row:
-                    flow[2]["value"] = fmt_amt(row["개인"])
-                    flow[2]["dir"] = "up" if row["개인"] >= 0 else "down"
+                d_found = (d, df_flow)
+                break
+        except Exception:
+            continue
+
+    if d_found:
+        d, df_flow = d_found
+        try:
+            row = df_flow.iloc[-1]
+            def fmt_amt(v):
+                v_eok = v / 100_000_000
+                sign = "+" if v_eok >= 0 else ""
+                return f"{sign}{v_eok:,.0f}억"
+            if "외국인합계" in row:
+                flow[0]["value"] = fmt_amt(row["외국인합계"])
+                flow[0]["dir"] = "up" if row["외국인합계"] >= 0 else "down"
+            if "기관합계" in row:
+                flow[1]["value"] = fmt_amt(row["기관합계"])
+                flow[1]["dir"] = "up" if row["기관합계"] >= 0 else "down"
+            if "개인" in row:
+                flow[2]["value"] = fmt_amt(row["개인"])
+                flow[2]["dir"] = "up" if row["개인"] >= 0 else "down"
         except Exception as e:
             print(f"  [경고] 수급 데이터 조회 실패: {e}")
 
@@ -347,20 +415,26 @@ def main():
     print("- 환율(원/달러, 엔/달러, 유로/달러) 수집 중...")
     fx_rows = build_fx()
 
-    print("- 국내지수/수급 수집 중 (pykrx)...")
+    print("- 국내지수/수급 수집 중 (네이버 금융 + pykrx)...")
     domestic_rows, flow_rows = build_domestic()
+    domestic_ok = any(r["value"] != "[N/A]" for r in domestic_rows)
+    flow_ok = any(r["value"] != "[N/A]" for r in flow_rows)
 
     html = replace_block(html, "// [AUTO:OVERSEAS_START]", "// [AUTO:OVERSEAS_END]", build_overseas_js(overseas_rows))
     html = replace_block(html, "// [AUTO:RATE_START]", "// [AUTO:RATE_END]", build_rate_js(rate_card))
     html = replace_block(html, "// [AUTO:GOLD_START]", "// [AUTO:GOLD_END]", build_gold_js(gold_card))
     html = replace_block(html, "// [AUTO:FX_START]", "// [AUTO:FX_END]", build_fx_js(fx_rows))
 
-    if domestic_rows:
+    if domestic_ok:
         html = replace_block(html, "// [AUTO:DOMESTIC_START]", "// [AUTO:DOMESTIC_END]", build_domestic_js(domestic_rows))
-    if flow_rows:
+    else:
+        print("  [안내] 국내지수 조회 실패 - 기존 값을 유지합니다.")
+    if flow_ok:
         html = replace_block(html, "// [AUTO:FLOW_START]", "// [AUTO:FLOW_END]", build_flow_js(flow_rows))
+    else:
+        print("  [안내] 수급 데이터 없음 - 기존 값을 유지합니다.")
 
-    kospi_row = domestic_rows[0] if domestic_rows else None
+    kospi_row = domestic_rows[0] if domestic_ok else None
     summary_js = build_summary_js(kospi_row, rate_card["y10"])
     html = replace_block(html, "// [AUTO:SUMMARY_START]", "// [AUTO:SUMMARY_END]", summary_js)
 

@@ -57,15 +57,34 @@
 | 데이터 | 출처 |
 |---|---|
 | 해외지수 (S&P500·나스닥·다우·STOXX600·니케이225·상해종합) | Yahoo Finance |
-| 미국채 10Y·2Y 금리, 장단기 스프레드 | Yahoo Finance (`^TNX`, `^UST2Y`) |
+| 미국채 10Y·2Y 금리, 장단기 스프레드 | **FRED**(미 연준 공식, API키 불필요) |
 | 달러인덱스, WTI유가, 금가격 | Yahoo Finance |
 | 원/달러·엔/달러·유로/달러 환율 | Yahoo Finance |
-| 코스피·코스닥 지수, 수급(외국인/기관/개인) | pykrx (KRX/네이버 기반) |
+| 코스피·코스닥 지수 | **네이버 금융** (로그인 불필요) |
+| 수급(외국인/기관/개인) | pykrx — **KRX 계정 로그인 필요** (아래 참고) |
 
-- 2년물 국채금리 티커(`^UST2Y`)는 Yahoo Finance에서 간헐적으로 불안정할 수 있습니다.
-  최초 실행 로그에서 `[N/A]`로 나오면 FRED API(DGS2, 무료 발급)로 교체를 권장합니다.
-- 장중 이슈 등으로 당일 데이터 수집이 실패해도, 최근 성공한 값이 페이지에 남아있고
-  `REPORT_DATE` 문구로 기준 시각을 확인할 수 있습니다.
+### 수급(외국인/기관/개인) 데이터를 자동화하려면 (선택사항)
+
+최신 pykrx는 KRX 데이터 조회 시 로그인을 요구합니다. 이 부분만 자동화하고 싶다면:
+
+1. https://data.krx.co.kr 에서 무료 회원가입
+2. 저장소 Settings → Secrets and variables → Actions → **New repository secret**
+   - `KRX_ID` : 가입한 아이디
+   - `KRX_PW` : 비밀번호
+3. `.github/workflows/daily-update.yml` 의 "Fetch market data" 스텝에 아래 env 추가:
+   ```yaml
+   - name: Fetch market data & update docs/index.html
+     env:
+       KRX_ID: ${{ secrets.KRX_ID }}
+       KRX_PW: ${{ secrets.KRX_PW }}
+     run: python scripts/update_market_data.py
+   ```
+
+로그인 정보를 설정하지 않으면 수급 카드는 자동 갱신되지 않고 이전 값(또는 예시 값)이 유지됩니다 —
+에러가 나서 페이지가 깨지지는 않으니, 굳이 급하게 설정 안 하셔도 됩니다.
+
+- 장중 이슈 등으로 당일 데이터 수집이 일부 실패해도, **직전에 성공한 값이 그대로 유지**됩니다
+  (실패했다고 값을 `[N/A]`로 덮어쓰지 않도록 처리되어 있습니다). `REPORT_DATE` 문구로 기준 시각을 확인하세요.
 
 ## 로컬에서 테스트하기
 
