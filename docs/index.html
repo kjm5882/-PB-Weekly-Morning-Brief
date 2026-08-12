@@ -72,22 +72,6 @@
     font-family:var(--f-body); font-size:15px; color:var(--ma-text); max-width:680px;
   }
 
-  /* ---------- TL;DR summary cards ---------- */
-  .summary-grid{
-    display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
-    margin-top:14px;
-  }
-  @media (max-width:760px){ .summary-grid{ grid-template-columns:repeat(2,1fr); } }
-  .scard{
-    background:var(--ma-bg-soft); padding:10px 12px 9px 12px; border-left:3px solid var(--ma-blue);
-  }
-  .scard .slabel{ font-family:var(--f-light); font-size:11.5px; color:var(--ma-text-sub); margin-bottom:3px; }
-  .scard .sval{ font-family:var(--f-bold); font-size:17px; color:var(--ma-text); }
-  .scard .schg{ font-family:var(--f-bold); font-size:12.5px; margin-top:2px; }
-  .schg.up{ color:var(--ma-blue-title); }
-  .schg.down{ color:var(--ma-warn); }
-  .schg.flat{ color:var(--ma-text-sub); }
-
   /* ---------- Section shell ---------- */
   section.block{ padding:24px 0 4px 0; scroll-margin-top:52px; }
   .block .kicker{
@@ -217,29 +201,6 @@
   }
   .highlight-box .arw{ color:var(--ma-orange); margin-right:6px; }
 
-  /* ---------- Closing ---------- */
-  .closing{ padding:26px 0 30px 0; }
-  .closing .tag{
-    font-family:var(--f-bold); font-size:12.5px; color:var(--ma-orange);
-    letter-spacing:.05em; margin-bottom:6px;
-  }
-  .closing h2{
-    font-family:var(--f-bold); color:var(--ma-blue);
-    font-size:clamp(20px,2.8vw,26px); margin:0 0 10px 0; max-width:760px;
-  }
-  .checklist{ display:flex; flex-direction:column; gap:0; max-width:760px; }
-  .check-item{
-    display:flex; gap:10px; align-items:flex-start;
-    padding:9px 0; border-top:1px solid var(--ma-rule);
-  }
-  .checklist .check-item:last-child{ border-bottom:1px solid var(--ma-rule); }
-  .check-num{
-    flex:0 0 auto; width:21px; height:21px; border-radius:50%;
-    background:var(--ma-blue); color:#fff; font-family:var(--f-bold); font-size:11.5px;
-    display:flex; align-items:center; justify-content:center; margin-top:1px;
-  }
-  .check-text{ font-family:var(--f-body); font-size:14px; color:var(--ma-text); }
-
   footer{
     border-top:1px solid var(--ma-rule); padding:12px 0 20px 0;
     font-family:var(--f-light); font-size:11px; color:var(--ma-text-sub);
@@ -256,7 +217,6 @@
     <a href="#domestic">국내시황</a>
     <a href="#issues">주요이슈</a>
     <a href="#implications">연계시사점</a>
-    <a href="#direction">영업방향</a>
   </div>
 </nav>
 
@@ -268,7 +228,6 @@
     <div class="week" id="weekLabel"></div>
     <h1 id="heroHeadline"></h1>
     <div class="sub" id="heroSub"></div>
-    <div class="summary-grid" id="summaryGrid"></div>
   </section>
 
   <!-- ================= 해외 시황 ================= -->
@@ -291,9 +250,6 @@
 
     <div style="margin-top:30px; font-family:var(--f-bold); font-size:14.5px; color:var(--ma-text);">수급 동향 (순매수)</div>
     <div class="flow-grid" id="flowGrid"></div>
-
-    <div style="margin-top:30px; font-family:var(--f-bold); font-size:14.5px; color:var(--ma-text);">업종 Top Movers</div>
-    <div class="sector-grid" id="sectorGrid"></div>
   </section>
 
   <!-- ================= 주요 이슈 ================= -->
@@ -311,13 +267,6 @@
     <div class="desc" id="implDesc"></div>
     <div class="impl-grid" id="implGrid"></div>
     <div class="highlight-box" id="implHighlight"></div>
-  </section>
-
-  <!-- ================= 영업방향 ================= -->
-  <section class="closing reveal" id="direction">
-    <div class="tag" id="dirTag"></div>
-    <h2 id="dirHeadline"></h2>
-    <div class="checklist" id="dirChecklist"></div>
   </section>
 
   <footer>
@@ -344,93 +293,96 @@
 ===================================================================== */
 
 const WEEK_LABEL = "2026.08.11(월) ~ 08.15(금)";
-const REPORT_DATE = "기준 2026.08.12(Wed) 10:17 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
+const REPORT_DATE = "기준 2026.08.11(월) 08:00 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
 
+// [AI:HERO_START] -- generate_commentary.py(Claude API)가 매일 자동 생성합니다. 직접 수정해도 다음 실행 시 덮어써집니다.
 const HERO = {
   headline: "[이번주 시황을 한 문장으로 요약]",
   sub: "예) 변동성 확대 속 코스피 박스권 등락, 미 FOMC 앞두고 관망심리 우세"
 };
-
-// [AUTO:SUMMARY_START]
-const SUMMARY_AUTO = [
-  { label: "코스피", value: "[N/A]", chg: "[N/A]", dir: "up" },
-  { label: "미 10년물 금리", value: "0.47%", chg: "", dir: "flat" }
-];
-// [AUTO:SUMMARY_END]
-
-// [MANUAL] -- 아래 2개 항목은 매주 직접 수정하세요.
-const SUMMARY_MANUAL = [
-  { label: "이번주 최대 이벤트", value: "[FOMC]", chg: "[8/13(수)]", dir: "flat" },
-  { label: "이번주 Focus", value: "[카이로스 모니터링]", chg: "", dir: "flat" }
-];
-const SUMMARY_CARDS = SUMMARY_AUTO.concat(SUMMARY_MANUAL);
-
+// [AI:HERO_END]
 
 const OVERSEAS_DESC = "전주 대비 주요 변동 요인 중심으로 점검";
-// [AUTO:OVERSEAS_START]
+// [AUTO:OVERSEAS_START] -- update_market_data.py가 value/chg/pct를 자동 갱신합니다. comment는 직접 작성하세요.
 const OVERSEAS = [
-  { name: "S&P 500", value: "7,728.2pt", chg: "▼ -0.3%", pct: -0.32, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "나스닥", value: "26,445.4pt", chg: "▼ -0.6%", pct: -0.6, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "다우존스", value: "53,791.9pt", chg: "▼ -0.3%", pct: -0.34, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "유럽 STOXX600", value: "660.5pt", chg: "▲ +0.0%", pct: 0.01, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "일본 니케이225", value: "66,920.4pt", chg: "▼ -0.1%", pct: -0.07, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "중국 상해종합", value: "3,934.1pt", chg: "▼ -0.8%", pct: -0.82, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "달러인덱스(DXY)", value: "99.8", chg: "▲ +0.0%", pct: 0.04, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "WTI 유가", value: "83.9$", chg: "▲ +2.2%", pct: 2.2, comment: "[등락 배경 한 줄 코멘트]" }
+  { name: "S&P 500",        value: "[0,000pt]",  chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "나스닥",          value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "다우존스",        value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "유럽 STOXX600",   value: "[000pt]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "일본 니케이225",  value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "중국 상해종합",   value: "[0,000pt]",  chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "달러인덱스(DXY)", value: "[00.0]",     chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "WTI 유가",        value: "[00.0$]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:OVERSEAS_END]
 
 /* ---- 금리 카드 (10Y·2Y·장단기 스프레드) : 3년 월간 스프레드(10Y-2Y) 예시 곡선, 0 기준선 ---- */
 // [AUTO:RATE_START]
 const RATE_CARD = {
-  y10: "0.47%",
-  y2: "[N/A]",
-  spreadValue: 0,
-  spreadLabel: "[N/A]",
-  history: [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+  y10: "[0.00%]",
+  y2: "[0.00%]",
+  spreadValue: 0.00,          // 예: 10Y-2Y = +0.00%p  (마이너스면 역전)
+  spreadLabel: "[+0.00%p]",
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    -0.5,-0.6,-0.7,-0.8,-0.9,-1.0,-0.9,-0.8,-0.7,-0.6,-0.5,-0.4,
+    -0.3,-0.2,-0.1, 0.0, 0.05,0.1, 0.15,0.1, 0.05,0.0,-0.05,0.0,
+     0.05,0.1, 0.15, 0.2, 0.15, 0.1, 0.15, 0.2, 0.25, 0.2, 0.15, 0.00
+  ]
 };
 // [AUTO:RATE_END]
 
 /* ---- 금(Gold) 카드 : 3년 월간 가격 예시 곡선 (반도체중소형주 대시보드와 동일한 간이차트 방식) ---- */
 // [AUTO:GOLD_START]
 const GOLD_CARD = {
-  price: "4,444.2$",
-  chg: "▲ +1.9%",
-  pct: 1.89,
-  history: [1848,2038,2062,2048,2046,2217,2291,2323,2328,2426,2494,2738,2657,2812,2837,3123,3305,3289,3293,3474,3841,3982,4218,4326,4714,4615,4560,4023,4049,4444]
+  price: "[2,650.0$]",
+  chg: "[+0.0%]",
+  pct: 0,
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    1850,1870,1900,1890,1920,1950,1980,1970,2000,2030,2010,2040,
+    2070,2100,2080,2110,2150,2180,2200,2230,2210,2250,2280,2300,
+    2330,2360,2340,2380,2410,2440,2460,2490,2510,2540,2560,2600
+  ]
 };
 // [AUTO:GOLD_END]
 
 /* ---- 환율 카드 (원/달러 · 엔/달러 · 유로/달러) : 3년 월간 예시 곡선 ---- */
 // [AUTO:FX_START]
 const FX = [
-  { name: "원/달러 (USD-KRW)", value: "1,413.16", chg: "▼ -0.3%", pct: -0.29, history: [1352,1348,1288,1294,1327,1333,1345,1375,1376,1380,1384,1337,1309,1379,1400,1467,1442,1450,1469,1431,1382,1364,1393,1387,1399,1424,1466,1438,1450,1432,1516,1487,1506,1542,1421,1413] },
-  { name: "엔/달러 (USD-JPY)", value: "159.33", chg: "▲ +0.1%", pct: 0.11, history: [149.4,149.1,147,141,147.4,150.7,151.3,156.3,157,160.9,152.7,146.2,142.8,153.2,149.7,157,154.1,150,149.6,142.3,144,144.5,149.2,147,148.6,153.9,156.2,156.4,154.7,155.9,159.8,160.2,159.3,161.9,160.2,159.3] },
-  { name: "유로/달러 (EUR-USD)", value: "1.15", chg: "▼ -0.0%", pct: -0.05, history: [1.059,1.062,1.097,1.106,1.084,1.084,1.08,1.072,1.083,1.072,1.082,1.106,1.117,1.086,1.058,1.041,1.04,1.04,1.082,1.139,1.135,1.173,1.143,1.169,1.173,1.157,1.16,1.175,1.185,1.18,1.146,1.169,1.166,1.142,1.152,1.154] }
+  { name: "원/달러 (USD-KRW)", value: "[1,320.0원]", chg: "[+0.0%]", pct: 0, history: [
+    1290,1295,1300,1310,1305,1315,1320,1330,1325,1335,1340,1330,
+    1320,1310,1315,1325,1335,1340,1345,1330,1320,1330,1340,1350,
+    1345,1335,1325,1330,1340,1345,1350,1355,1345,1335,1330,1320
+  ]},
+  { name: "엔/달러 (USD-JPY)", value: "[150.0엔]", chg: "[-0.0%]", pct: 0, history: [
+    131,133,135,138,140,142,145,147,148,150,149,147,
+    145,143,141,140,142,144,146,148,150,152,151,149,
+    147,145,144,146,148,150,152,151,149,148,150,151
+  ]},
+  { name: "유로/달러 (EUR-USD)", value: "[1.08]", chg: "[+0.0%]", pct: 0, history: [
+    1.06,1.07,1.05,1.04,1.03,1.05,1.07,1.08,1.09,1.07,1.06,1.05,
+    1.06,1.08,1.09,1.10,1.09,1.08,1.07,1.06,1.07,1.08,1.09,1.10,
+    1.09,1.08,1.07,1.08,1.09,1.10,1.09,1.08,1.07,1.08,1.09,1.08
+  ]}
 ];
 // [AUTO:FX_END]
 
 const DOMESTIC_DESC = "지수·수급·업종 흐름을 함께 확인";
-// [AUTO:DOMESTIC_START]
+// [AUTO:DOMESTIC_START] -- pykrx/네이버 스크래핑으로 자동 갱신
 const DOMESTIC_INDEX = [
-  { name: "코스피", value: "[N/A]", chg: "[N/A]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
-  { name: "코스닥", value: "[N/A]", chg: "[N/A]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
+  { name: "코스피", value: "[2,850pt]", chg: "[▲ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "코스닥", value: "[800pt]",   chg: "[▼ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:DOMESTIC_END]
 
-// [AUTO:FLOW_START]
+// [AUTO:FLOW_START] -- pykrx 투자자별 매매동향으로 자동 갱신, top(상위 업종/종목)은 직접 채워도 됨
 const FLOW = [
-  { name: "외국인", value: "[N/A]", dir: "up", top: "[순매수 상위 업종/종목]" },
-  { name: "기관", value: "[N/A]", dir: "down", top: "[순매도 상위 업종/종목]" },
-  { name: "개인", value: "[N/A]", dir: "up", top: "[순매수 상위 업종/종목]" }
+  { name: "외국인", value: "[+0,000억]", dir: "up",   top: "[순매수 상위 업종/종목]" },
+  { name: "기관",   value: "[-0,000억]", dir: "down", top: "[순매도 상위 업종/종목]" },
+  { name: "개인",   value: "[+0,000억]", dir: "up",   top: "[순매수 상위 업종/종목]" }
 ];
 // [AUTO:FLOW_END]
 
-const SECTORS = {
-  up:   [ { name: "[업종명]", chg: "[+0.0%]" }, { name: "[업종명]", chg: "[+0.0%]" }, { name: "[업종명]", chg: "[+0.0%]" } ],
-  down: [ { name: "[업종명]", chg: "[-0.0%]" }, { name: "[업종명]", chg: "[-0.0%]" }, { name: "[업종명]", chg: "[-0.0%]" } ]
-};
-
+// [AI:ISSUES_START] -- generate_commentary.py(Claude + 웹검색)가 자동 생성합니다.
 const ISSUES_DESC = "발표 시점 기준 예정된 주요 이벤트 (중요도: 상/중/하)";
 const ISSUES = [
   { date: "8/12(화)", importance: "mid",  title: "[경제지표/이벤트명]",   desc: "[코멘트 및 시장 영향 포인트]" },
@@ -438,7 +390,9 @@ const ISSUES = [
   { date: "8/14(목)", importance: "mid",  title: "[주요 기업 실적발표]",  desc: "[코멘트 및 시장 영향 포인트]" },
   { date: "8/15(금)", importance: "low",  title: "[기타 이슈]",          desc: "[코멘트 및 시장 영향 포인트]" }
 ];
+// [AI:ISSUES_END]
 
+// [AI:IMPLICATIONS_START] -- generate_commentary.py가 business_context.md 내용을 바탕으로 자동 생성합니다.
 const IMPL_HEADLINE = "시황이 우리 업무에 주는 시사점";
 const IMPL_DESC = "다이렉트 고객 · 카이로스 멤버십 · 세일즈 포인트로 연결";
 const IMPLICATIONS = [
@@ -448,16 +402,7 @@ const IMPLICATIONS = [
   { cat: "세미나 연계", text: "[이번주 이슈를 다음 온라인세미나 주제로 연결할 여지]", action: "후속 세미나 기획에 반영" }
 ];
 const IMPL_HIGHLIGHT = "[이번주 가장 중요한 연계 포인트 한 줄 결론]";
-
-const DIRECTION = {
-  tag: "THIS WEEK FOCUS",
-  headline: "[이번주 영업방향을 한 문장으로]",
-  checklist: [
-    "[카이로스 멤버십 리스크관리 모니터링 최우선 점검]",
-    "[온라인세미나 후속마케팅 대상 고객 응대 병행]",
-    "[세무 VOC 대응 프로세스 개선 협의체 진행 상황 공유]"
-  ]
-};
+// [AI:IMPLICATIONS_END]
 
 /* ===================================================================== */
 
@@ -583,13 +528,6 @@ function build(){
   document.getElementById("heroHeadline").textContent = HERO.headline;
   document.getElementById("heroSub").textContent = HERO.sub;
 
-  document.getElementById("summaryGrid").innerHTML = SUMMARY_CARDS.map(s => `
-    <div class="scard">
-      <div class="slabel">${s.label}</div>
-      <div class="sval">${s.value}</div>
-      ${s.chg ? `<div class="schg ${s.dir}">${s.chg}</div>` : ""}
-    </div>`).join("");
-
   document.getElementById("overseasDesc").textContent = OVERSEAS_DESC;
   document.getElementById("overseasRows").innerHTML = OVERSEAS.map(renderMarketRow).join("");
   document.getElementById("sparkGrid").innerHTML = renderRateCard() + renderGoldCard();
@@ -605,16 +543,6 @@ function build(){
       <div class="ftop">${f.top}</div>
     </div>`).join("");
 
-  document.getElementById("sectorGrid").innerHTML = `
-    <div class="sector-col up">
-      <div class="col-title">▲ 상승 업종</div>
-      <div class="chip-list">${SECTORS.up.map(s => `<div class="chip"><span class="cname">${s.name}</span><span class="cval up">${s.chg}</span></div>`).join("")}</div>
-    </div>
-    <div class="sector-col down">
-      <div class="col-title">▼ 하락 업종</div>
-      <div class="chip-list">${SECTORS.down.map(s => `<div class="chip"><span class="cname">${s.name}</span><span class="cval down">${s.chg}</span></div>`).join("")}</div>
-    </div>`;
-
   document.getElementById("issuesDesc").textContent = ISSUES_DESC;
   document.getElementById("issuesList").innerHTML = ISSUES.map(renderIssue).join("");
 
@@ -622,14 +550,6 @@ function build(){
   document.getElementById("implDesc").textContent = IMPL_DESC;
   document.getElementById("implGrid").innerHTML = IMPLICATIONS.map(renderImplCard).join("");
   document.getElementById("implHighlight").innerHTML = `<span class="arw">➡</span>${IMPL_HIGHLIGHT}`;
-
-  document.getElementById("dirTag").textContent = DIRECTION.tag;
-  document.getElementById("dirHeadline").textContent = DIRECTION.headline;
-  document.getElementById("dirChecklist").innerHTML = DIRECTION.checklist.map((t,i) => `
-    <div class="check-item">
-      <div class="check-num">${i+1}</div>
-      <div class="check-text">${t}</div>
-    </div>`).join("");
 
   document.getElementById("footerRight").textContent = REPORT_DATE;
 }

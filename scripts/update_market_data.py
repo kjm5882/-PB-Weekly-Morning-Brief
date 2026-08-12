@@ -49,6 +49,11 @@ OVERSEAS_TICKERS = [
     ("WTI 유가",        "CL=F", "$"),
 ]
 
+DOMESTIC_TICKERS = [
+    ("코스피", "^KS11", "pt"),
+    ("코스닥", "^KQ11", "pt"),
+]
+
 RATE_TICKERS = {
     # Yahoo Finance의 국채금리 티커(특히 2년물)는 불안정해서 FRED(연준 공식, 무료, API키 불필요)로 대체
     "10y": "DGS10",
@@ -119,13 +124,13 @@ def fetch_history_3y(ticker: str, interval: str = "1mo"):
 
 
 def fetch_last_and_chg(ticker: str):
-    """가장 최근 종가와 전일 대비 등락률(%)을 반환."""
+    """가장 최근 종가와 '지난주 대비' 등락률(%)을 반환 (약 5영업일 전 종가와 비교)."""
     try:
-        df = yf.Ticker(ticker).history(period="5d", interval="1d")
-        if len(df) < 2:
+        df = yf.Ticker(ticker).history(period="1mo", interval="1d")
+        if len(df) < 6:
             return None, None
         last = float(df["Close"].iloc[-1])
-        prev = float(df["Close"].iloc[-2])
+        prev = float(df["Close"].iloc[-6])  # 약 1주일(5영업일) 전
         pct = (last - prev) / prev * 100 if prev else 0
         return last, pct
     except Exception as e:
@@ -242,8 +247,9 @@ def fetch_naver_index(code: str):
 
 
 def build_domestic():
-    """1순위: 네이버 금융(로그인 불필요)으로 코스피/코스닥 지수를 가져온다.
-    2순위: pykrx로 수급(외국인/기관/개인)을 가져온다 — 단, 최신 pykrx는 KRX 로그인이 필요해
+    """1순위: Yahoo Finance(^KS11/^KQ11)로 코스피/코스닥 지수 + 지난주 대비 등락 계산.
+    2순위(현재가만 보정용): 네이버 금융으로 교차 확인.
+    수급(외국인/기관/개인)은 pykrx로 가져온다 — 단, 최신 pykrx는 KRX 로그인이 필요해
     KRX_ID / KRX_PW 환경변수(GitHub Secrets)가 없으면 이 부분은 건너뛴다."""
     domestic_index = [
         {"name": "코스피", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "comment": "[등락 배경 한 줄 코멘트]"},
@@ -255,19 +261,18 @@ def build_domestic():
         {"name": "개인",   "value": "[N/A]", "dir": "up",   "top": "[순매수 상위 업종/종목]"},
     ]
 
-    kospi_val, kospi_pct = fetch_naver_index("KOSPI")
-    if kospi_val is not None:
-        domestic_index[0]["value"] = f"{kospi_val:,.1f}pt"
-        if kospi_pct is not None:
-            domestic_index[0]["chg"] = fmt_pct(kospi_pct)
-            domestic_index[0]["pct"] = round(kospi_pct, 2)
-
-    kosdaq_val, kosdaq_pct = fetch_naver_index("KOSDAQ")
-    if kosdaq_val is not None:
-        domestic_index[1]["value"] = f"{kosdaq_val:,.1f}pt"
-        if kosdaq_pct is not None:
-            domestic_index[1]["chg"] = fmt_pct(kosdaq_pct)
-            domestic_index[1]["pct"] = round(kosdaq_pct, 2)
+    for i, (name, ticker, unit) in enumerate(DOMESTIC_TICKERS):
+        last, pct = fetch_last_and_chg(ticker)
+        if last is not None:
+            domestic_index[i]["value"] = f"{last:,.1f}{unit}"
+            domestic_index[i]["chg"] = fmt_pct(pct)
+            domestic_index[i]["pct"] = round(pct, 2) if pct is not None else 0
+        else:
+            # Yahoo 실패 시 네이버로 현재가만이라도 보정 (등락률은 지난주 대비 계산 불가하므로 비워둠)
+            code = "KOSPI" if name == "코스피" else "KOSDAQ"
+            naver_val, _ = fetch_naver_index(code)
+            if naver_val is not None:
+                domestic_index[i]["value"] = f"{naver_val:,.1f}pt"
 
     if not HAS_PYKRX:
         print("  [안내] pykrx 미설치로 수급 데이터는 건너뜁니다.")
@@ -373,18 +378,6 @@ def build_flow_js(rows):
     return "const FLOW = [\n" + ",\n".join(items) + "\n];"
 
 
-def build_summary_js(kospi_row, rate10y):
-    kospi_val = kospi_row["value"] if kospi_row else "[N/A]"
-    kospi_chg = kospi_row["chg"] if kospi_row else "[N/A]"
-    kospi_dir = "up" if kospi_row and kospi_row["pct"] >= 0 else "down"
-    return (
-        "const SUMMARY_AUTO = [\n"
-        f'  {{ label: "코스피", value: "{kospi_val}", chg: "{kospi_chg}", dir: "{kospi_dir}" }},\n'
-        f'  {{ label: "미 10년물 금리", value: "{rate10y}", chg: "", dir: "flat" }}\n'
-        "];"
-    )
-
-
 # ---------------------------------------------------------------------------
 # 5) 마커 기반 치환
 # ---------------------------------------------------------------------------
@@ -433,10 +426,6 @@ def main():
         html = replace_block(html, "// [AUTO:FLOW_START]", "// [AUTO:FLOW_END]", build_flow_js(flow_rows))
     else:
         print("  [안내] 수급 데이터 없음 - 기존 값을 유지합니다.")
-
-    kospi_row = domestic_rows[0] if domestic_ok else None
-    summary_js = build_summary_js(kospi_row, rate_card["y10"])
-    html = replace_block(html, "// [AUTO:SUMMARY_START]", "// [AUTO:SUMMARY_END]", summary_js)
 
     # REPORT_DATE 갱신 (기준 시각 표기)
     now_kst = dt.datetime.utcnow() + dt.timedelta(hours=9)
