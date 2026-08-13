@@ -105,11 +105,13 @@ SCHEMA_INSTRUCTIONS = """
   "overseas_comments": { "지수명": "등락 배경 한 줄 코멘트", ... },
   "domestic_comments": { "코스피": "...", "코스닥": "..." },
   "issues": [
-    {"date": "8/12(화)", "importance": "mid", "title": "...", "desc": "..."},
+    {"date": "8/12(화)", "importance": "mid", "flag": "🇰🇷", "title": "...", "desc": "..."},
     ... 이번주 평일 기준 4~6개. 해외 이벤트(FOMC, 미 경제지표 등)와
         국내 이벤트(한국은행 금통위, 국내 주요 기업 실적발표, 국내 경제지표 등)를
         균형 있게 섞어서 포함하세요. 해외 일정만 나열하지 마세요.
-        importance는 high/mid/low 중 하나
+        importance는 high/mid/low 중 하나.
+        flag는 해당 이슈의 국가를 나타내는 국기 이모지 하나 (예: 미국=🇺🇸, 한국=🇰🇷,
+        유럽=🇪🇺, 일본=🇯🇵, 중국=🇨🇳). 국가가 명확하지 않으면 🌐 사용.
   ],
   "implications": [
     {"cat": "리스크관리", "text": "...", "action": "..."},
@@ -243,7 +245,7 @@ def build_hero_js(headline, sub):
 def build_issues_js(issues):
     lines = [
         f'  {{ date: "{esc(i["date"])}", importance: "{esc(i["importance"])}", '
-        f'title: "{esc(i["title"])}", desc: "{esc(i["desc"])}" }}'
+        f'flag: "{esc(i.get("flag", "🌐"))}", title: "{esc(i["title"])}", desc: "{esc(i["desc"])}" }}'
         for i in issues
     ]
     body = ",\n".join(lines)

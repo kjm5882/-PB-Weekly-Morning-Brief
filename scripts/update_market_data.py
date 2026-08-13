@@ -123,6 +123,19 @@ def fetch_history_3y(ticker: str, interval: str = "1mo"):
         return []
 
 
+def fetch_history_1w(ticker: str):
+    """최근 1주일(약 6영업일) 일별 종가를 리스트로 반환 - 지수 행의 작은 미니차트용."""
+    try:
+        df = yf.Ticker(ticker).history(period="1mo", interval="1d")
+        if df.empty:
+            return []
+        vals = [round(float(v), 4) for v in df["Close"].tolist()]
+        return vals[-6:] if len(vals) > 6 else vals
+    except Exception as e:
+        print(f"  [경고] {ticker} 1주일 히스토리 조회 실패: {e}")
+        return []
+
+
 def fetch_last_and_chg(ticker: str):
     """가장 최근 종가와 '지난주 대비' 등락률(%)을 반환 (약 5영업일 전 종가와 비교)."""
     try:
@@ -157,7 +170,7 @@ def build_overseas():
     rows = []
     for name, ticker, unit in OVERSEAS_TICKERS:
         last, pct = fetch_last_and_chg(ticker)
-        hist = fetch_history_3y(ticker)
+        hist = fetch_history_1w(ticker)
         if last is None:
             rows.append({"name": name, "value": "[N/A]", "chg": "[N/A]", "pct": 0, "history": hist or [0, 0]})
             continue
@@ -257,14 +270,13 @@ def build_domestic():
         {"name": "코스닥", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "history": [0, 0], "comment": "[등락 배경 한 줄 코멘트]"},
     ]
     flow = [
-        {"name": "외국인", "value": "[N/A]", "dir": "up",   "top": "[순매수 상위 업종/종목]"},
-        {"name": "기관",   "value": "[N/A]", "dir": "down", "top": "[순매도 상위 업종/종목]"},
-        {"name": "개인",   "value": "[N/A]", "dir": "up",   "top": "[순매수 상위 업종/종목]"},
+        {"market": "코스피", "foreign": "[N/A]", "institution": "[N/A]", "individual": "[N/A]"},
+        {"market": "코스닥", "foreign": "[N/A]", "institution": "[N/A]", "individual": "[N/A]"},
     ]
 
     for i, (name, ticker, unit) in enumerate(DOMESTIC_TICKERS):
         last, pct = fetch_last_and_chg(ticker)
-        hist = fetch_history_3y(ticker)
+        hist = fetch_history_1w(ticker)
         if hist:
             domestic_index[i]["history"] = hist
         if last is not None:
@@ -289,37 +301,36 @@ def build_domestic():
         return domestic_index, flow
 
     today = dt.datetime.utcnow() + dt.timedelta(hours=9)  # KST 기준으로 명시 (서버는 UTC로 동작)
-    # 최근 영업일 찾기 (최대 7일 역산)
-    d_found = None
-    for i in range(7):
-        d = (today - dt.timedelta(days=i)).strftime("%Y%m%d")
-        try:
-            df_flow = krx.get_market_trading_value_by_date(d, d, "KOSPI")
-            if not df_flow.empty:
-                d_found = (d, df_flow)
-                break
-        except Exception:
-            continue
 
-    if d_found:
-        d, df_flow = d_found
+    def fmt_amt(v):
+        v_eok = v / 100_000_000
+        sign = "+" if v_eok >= 0 else ""
+        return f"{sign}{v_eok:,.0f}억"
+
+    for market_idx, market_code in enumerate(["KOSPI", "KOSDAQ"]):
+        d_found = None
+        for i in range(7):
+            d = (today - dt.timedelta(days=i)).strftime("%Y%m%d")
+            try:
+                df_flow = krx.get_market_trading_value_by_date(d, d, market_code)
+                if not df_flow.empty:
+                    d_found = df_flow
+                    break
+            except Exception:
+                continue
+        if d_found is None:
+            print(f"  [경고] {market_code} 수급 데이터 조회 실패")
+            continue
         try:
-            row = df_flow.iloc[-1]
-            def fmt_amt(v):
-                v_eok = v / 100_000_000
-                sign = "+" if v_eok >= 0 else ""
-                return f"{sign}{v_eok:,.0f}억"
+            row = d_found.iloc[-1]
             if "외국인합계" in row:
-                flow[0]["value"] = fmt_amt(row["외국인합계"])
-                flow[0]["dir"] = "up" if row["외국인합계"] >= 0 else "down"
+                flow[market_idx]["foreign"] = fmt_amt(row["외국인합계"])
             if "기관합계" in row:
-                flow[1]["value"] = fmt_amt(row["기관합계"])
-                flow[1]["dir"] = "up" if row["기관합계"] >= 0 else "down"
+                flow[market_idx]["institution"] = fmt_amt(row["기관합계"])
             if "개인" in row:
-                flow[2]["value"] = fmt_amt(row["개인"])
-                flow[2]["dir"] = "up" if row["개인"] >= 0 else "down"
+                flow[market_idx]["individual"] = fmt_amt(row["개인"])
         except Exception as e:
-            print(f"  [경고] 수급 데이터 조회 실패: {e}")
+            print(f"  [경고] {market_code} 수급 데이터 파싱 실패: {e}")
 
     return domestic_index, flow
 
@@ -379,7 +390,10 @@ def build_domestic_js(rows):
 def build_flow_js(rows):
     items = []
     for r in rows:
-        items.append(f'  {{ name: "{r["name"]}", value: "{r["value"]}", dir: "{r["dir"]}", top: "{r["top"]}" }}')
+        items.append(
+            f'  {{ market: "{r["market"]}", foreign: "{r["foreign"]}", '
+            f'institution: "{r["institution"]}", individual: "{r["individual"]}" }}'
+        )
     return "const FLOW = [\n" + ",\n".join(items) + "\n];"
 
 
