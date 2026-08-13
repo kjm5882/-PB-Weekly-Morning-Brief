@@ -41,10 +41,10 @@ def extract_block(html: str, start_marker: str, end_marker: str) -> str:
 
 
 def parse_market_rows(block_text: str):
-    """name/value/chg/pct 형태의 JS 객체 배열을 파싱."""
+    """name/value/chg/pct/history 형태의 JS 객체 배열을 파싱. history는 원본 텍스트 그대로 보존."""
     rows = []
     for m in re.finditer(
-        r'name:\s*"([^"]*)",\s*value:\s*"([^"]*)",\s*chg:\s*"([^"]*)",\s*pct:\s*(-?[\d.]+)',
+        r'name:\s*"([^"]*)",\s*value:\s*"([^"]*)",\s*chg:\s*"([^"]*)",\s*pct:\s*(-?[\d.]+),\s*history:\s*(\[[^\]]*\])',
         block_text,
     ):
         rows.append({
@@ -52,6 +52,7 @@ def parse_market_rows(block_text: str):
             "value": m.group(2),
             "chg": m.group(3),
             "pct": float(m.group(4)),
+            "history_raw": m.group(5),
         })
     return rows
 
@@ -105,7 +106,10 @@ SCHEMA_INSTRUCTIONS = """
   "domestic_comments": { "코스피": "...", "코스닥": "..." },
   "issues": [
     {"date": "8/12(화)", "importance": "mid", "title": "...", "desc": "..."},
-    ... 이번주 평일 기준 3~5개, importance는 high/mid/low 중 하나
+    ... 이번주 평일 기준 4~6개. 해외 이벤트(FOMC, 미 경제지표 등)와
+        국내 이벤트(한국은행 금통위, 국내 주요 기업 실적발표, 국내 경제지표 등)를
+        균형 있게 섞어서 포함하세요. 해외 일정만 나열하지 마세요.
+        importance는 high/mid/low 중 하나
   ],
   "implications": [
     {"cat": "리스크관리", "text": "...", "action": "..."},
@@ -117,15 +121,31 @@ SCHEMA_INSTRUCTIONS = """
 }
 
 - issues 는 실제 이번 주(오늘 날짜 기준)에 예정된 경제지표·이벤트를 웹검색으로 확인해서 채우세요.
+  국내 일정(한국은행 금통위, 국내 기업 실적발표 등)을 반드시 포함하세요.
 - implications 는 반드시 아래 business_context.md 내용에 근거해서, 이번주 시황 데이터와
   구체적으로 연결해 작성하세요.
 """
 
 
+def build_weekday_dates() -> str:
+    """이번 주 월~금의 정확한 날짜-요일 목록을 만든다 (AI가 요일 계산을 틀리는 것을 방지)."""
+    today = dt.datetime.utcnow() + dt.timedelta(hours=9)
+    monday = today - dt.timedelta(days=today.weekday())
+    names = ["월", "화", "수", "목", "금"]
+    parts = []
+    for i in range(5):
+        d = monday + dt.timedelta(days=i)
+        parts.append(f"{d.month}/{d.day}({names[i]})")
+    return ", ".join(parts)
+
+
 def build_prompt(data: dict, week_label: str, today_str: str, context_md: str) -> str:
+    weekday_dates = build_weekday_dates()
     return f"""당신은 미래에셋증권 디지털PB센터의 주간 시황 브리핑 작성을 돕는 애널리스트입니다.
 오늘 날짜: {today_str}
 이번 주: {week_label}
+이번 주 날짜-요일 (정확함, 반드시 이 목록의 표기만 그대로 사용하세요 — 직접 요일을 계산하지 마세요):
+{weekday_dates}
 
 ## 이번 주 시황 데이터 (이미 확정된 수치, 임의로 바꾸지 말고 코멘트만 작성)
 해외지수: {json.dumps(data['overseas'], ensure_ascii=False)}
@@ -207,9 +227,10 @@ def rebuild_market_block(const_name: str, existing_rows: list, comments: dict) -
     lines = []
     for r in existing_rows:
         comment = comments.get(r["name"], "[코멘트 생성 실패]")
+        hist = r.get("history_raw", "[0,0]")
         lines.append(
             f'  {{ name: "{esc(r["name"])}", value: "{esc(r["value"])}", '
-            f'chg: "{esc(r["chg"])}", pct: {r["pct"]}, comment: "{esc(comment)}" }}'
+            f'chg: "{esc(r["chg"])}", pct: {r["pct"]}, history: {hist}, comment: "{esc(comment)}" }}'
         )
     body = ",\n".join(lines)
     return f"const {const_name} = [\n{body}\n];"

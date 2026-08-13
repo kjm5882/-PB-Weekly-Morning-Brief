@@ -157,11 +157,12 @@ def build_overseas():
     rows = []
     for name, ticker, unit in OVERSEAS_TICKERS:
         last, pct = fetch_last_and_chg(ticker)
+        hist = fetch_history_3y(ticker)
         if last is None:
-            rows.append({"name": name, "value": "[N/A]", "chg": "[N/A]", "pct": 0})
+            rows.append({"name": name, "value": "[N/A]", "chg": "[N/A]", "pct": 0, "history": hist or [0, 0]})
             continue
         value = f"{last:,.1f}{unit}"
-        rows.append({"name": name, "value": value, "chg": fmt_pct(pct), "pct": round(pct, 2)})
+        rows.append({"name": name, "value": value, "chg": fmt_pct(pct), "pct": round(pct, 2), "history": hist or [0, 0]})
     return rows
 
 
@@ -252,8 +253,8 @@ def build_domestic():
     수급(외국인/기관/개인)은 pykrx로 가져온다 — 단, 최신 pykrx는 KRX 로그인이 필요해
     KRX_ID / KRX_PW 환경변수(GitHub Secrets)가 없으면 이 부분은 건너뛴다."""
     domestic_index = [
-        {"name": "코스피", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "comment": "[등락 배경 한 줄 코멘트]"},
-        {"name": "코스닥", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "comment": "[등락 배경 한 줄 코멘트]"},
+        {"name": "코스피", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "history": [0, 0], "comment": "[등락 배경 한 줄 코멘트]"},
+        {"name": "코스닥", "value": "[N/A]", "chg": "[N/A]", "pct": 0, "history": [0, 0], "comment": "[등락 배경 한 줄 코멘트]"},
     ]
     flow = [
         {"name": "외국인", "value": "[N/A]", "dir": "up",   "top": "[순매수 상위 업종/종목]"},
@@ -263,6 +264,9 @@ def build_domestic():
 
     for i, (name, ticker, unit) in enumerate(DOMESTIC_TICKERS):
         last, pct = fetch_last_and_chg(ticker)
+        hist = fetch_history_3y(ticker)
+        if hist:
+            domestic_index[i]["history"] = hist
         if last is not None:
             domestic_index[i]["value"] = f"{last:,.1f}{unit}"
             domestic_index[i]["chg"] = fmt_pct(pct)
@@ -324,8 +328,9 @@ def build_domestic():
 # 4) JS 리터럴 문자열 생성
 # ---------------------------------------------------------------------------
 def js_row(r):
+    hist = js_array(r.get("history") or [0, 0])
     return (f'  {{ name: "{r["name"]}", value: "{r["value"]}", '
-            f'chg: "{r["chg"]}", pct: {r["pct"]}, comment: "[등락 배경 한 줄 코멘트]" }}')
+            f'chg: "{r["chg"]}", pct: {r["pct"]}, history: {hist}, comment: "[등락 배경 한 줄 코멘트]" }}')
 
 
 def build_overseas_js(rows):
@@ -392,9 +397,24 @@ def replace_block(html: str, start_marker: str, end_marker: str, new_code: str) 
     return new_html
 
 
+def build_week_label():
+    """오늘(KST) 기준으로 이번 주 월~금 날짜를 계산해 WEEK_LABEL 문자열을 만든다."""
+    today = dt.datetime.utcnow() + dt.timedelta(hours=9)
+    monday = today - dt.timedelta(days=today.weekday())  # weekday(): Mon=0
+    friday = monday + dt.timedelta(days=4)
+    return f"{monday.strftime('%Y.%m.%d')}(월) ~ {friday.strftime('%m.%d')}(금)"
+
+
 def main():
     print("== 시황 데이터 수집 시작 ==")
     html = INDEX_HTML.read_text(encoding="utf-8")
+
+    week_label = build_week_label()
+    html = re.sub(
+        r'const WEEK_LABEL = "[^"]*";',
+        f'const WEEK_LABEL = "{week_label}";',
+        html,
+    )
 
     print("- 해외지수 수집 중...")
     overseas_rows = build_overseas()
