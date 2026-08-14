@@ -116,8 +116,8 @@ SCHEMA_INSTRUCTIONS = """
   "implications": [
     {"cat": "리스크관리", "text": "...", "action": "..."},
     {"cat": "세일즈 기회", "text": "...", "action": "..."},
-    {"cat": "VOC 영향", "text": "...", "action": "..."},
-    {"cat": "세미나 연계", "text": "...", "action": "..."}
+    {"cat": "고객 커뮤니케이션", "text": "...", "action": "..."},
+    {"cat": "자산배분 시사점", "text": "...", "action": "..."}
   ],
   "impl_highlight": "이번주 가장 중요한 연계 포인트 한 줄 결론"
 }
