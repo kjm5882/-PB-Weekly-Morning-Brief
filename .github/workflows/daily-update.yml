@@ -2,9 +2,8 @@ name: Update weekly market briefing
 
 on:
   schedule:
-    # 08:00 KST(UTC+9) 평일에 실행 = 전일 23:00 UTC 실행
-    # UTC 요일: Sun=0 ... Thu=4 → KST 기준 Mon~Fri 08:00 에 대응
-    - cron: "0 23 * * 0,1,2,3,4"
+    # 매주 월요일 07:00 KST(UTC+9)에만 실행 = 일요일 22:00 UTC 실행
+    - cron: "0 22 * * 0"
   workflow_dispatch: {}   # 필요할 때 수동 실행 버튼으로도 실행 가능
 
 permissions:
