@@ -222,7 +222,14 @@ def replace_block(html: str, start_marker: str, end_marker: str, new_code: str) 
 
 
 def esc(s: str) -> str:
-    return str(s).replace('"', '\\"')
+    s = str(s)
+    s = s.replace("\\", "\\\\")   # 백슬래시 먼저 이스케이프 (순서 중요)
+    s = s.replace('"', '\\"')
+    s = s.replace("\r\n", " ").replace("\n", " ").replace("\r", " ")  # 줄바꿈은 문자열을 깨뜨리므로 공백으로 치환
+    # AI가 생성한 문장에 "</script" 같은 문자열이 우연히 섞이면 브라우저가 <script> 블록을
+    # 그 지점에서 통째로 닫아버려 페이지 전체가 하얗게 멈춘다. "</" 를 "<\/" 로 치환해 방지.
+    s = s.replace("</", "<\\/")
+    return s
 
 
 def rebuild_market_block(const_name: str, existing_rows: list, comments: dict) -> str:
