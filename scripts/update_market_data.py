@@ -118,7 +118,8 @@ def fetch_history_1y(ticker: str):
         df = yf.Ticker(ticker).history(period="1y", interval="1wk")
         if df.empty:
             return []
-        return [round(float(v), 4) for v in df["Close"].tolist()]
+        closes = df["Close"].dropna()
+        return [round(float(v), 4) for v in closes.tolist()]
     except Exception as e:
         print(f"  [경고] {ticker} 1년 히스토리 조회 실패: {e}")
         return []
@@ -130,19 +131,21 @@ def fetch_history_3m(ticker: str):
         df = yf.Ticker(ticker).history(period="3mo", interval="1d")
         if df.empty:
             return []
-        return [round(float(v), 4) for v in df["Close"].tolist()]
+        closes = df["Close"].dropna()
+        return [round(float(v), 4) for v in closes.tolist()]
     except Exception as e:
         print(f"  [경고] {ticker} 3개월 히스토리 조회 실패: {e}")
         return []
 
 
-def fetch_history_3y(ticker: str, interval: str = "1mo"):
-    """3년치 히스토리(월봉 기준)를 리스트로 반환. 실패 시 빈 리스트."""
+def fetch_history_3y(ticker: str, interval: str = "1mo", period: str = "3y"):
+    """지정 기간의 히스토리를 리스트로 반환 (기본 3년/월봉). 실패 시 빈 리스트."""
     try:
-        df = yf.Ticker(ticker).history(period="3y", interval=interval)
+        df = yf.Ticker(ticker).history(period=period, interval=interval)
         if df.empty:
             return []
-        return [round(float(v), 4) for v in df["Close"].tolist()]
+        closes = df["Close"].dropna()
+        return [round(float(v), 4) for v in closes.tolist()]
     except Exception as e:
         print(f"  [경고] {ticker} 히스토리 조회 실패: {e}")
         return []
@@ -154,7 +157,7 @@ def fetch_history_1w(ticker: str):
         df = yf.Ticker(ticker).history(period="1mo", interval="1d")
         if df.empty:
             return []
-        vals = [round(float(v), 4) for v in df["Close"].tolist()]
+        vals = [round(float(v), 4) for v in df["Close"].dropna().tolist()]
         return vals[-6:] if len(vals) > 6 else vals
     except Exception as e:
         print(f"  [경고] {ticker} 1주일 히스토리 조회 실패: {e}")
@@ -163,13 +166,17 @@ def fetch_history_1w(ticker: str):
 
 def fetch_last_and_chg(ticker: str):
     """가장 최근 종가와 '지난주 대비' 등락률(%)을 반환 (약 5영업일 전 종가와 비교)."""
+    import math
     try:
         df = yf.Ticker(ticker).history(period="1mo", interval="1d")
-        if len(df) < 6:
+        closes = df["Close"].dropna()
+        if len(closes) < 6:
             return None, None
-        last = float(df["Close"].iloc[-1])
-        prev = float(df["Close"].iloc[-6])  # 약 1주일(5영업일) 전
-        pct = (last - prev) / prev * 100 if prev else 0
+        last = float(closes.iloc[-1])
+        prev = float(closes.iloc[-6])  # 약 1주일(5영업일) 전
+        if not (math.isfinite(last) and math.isfinite(prev)) or prev == 0:
+            return None, None
+        pct = (last - prev) / prev * 100
         return last, pct
     except Exception as e:
         print(f"  [경고] {ticker} 시세 조회 실패: {e}")
@@ -185,7 +192,11 @@ def fmt_pct(pct):
 
 
 def js_array(nums):
-    return "[" + ",".join(f"{n:.4g}" for n in nums) + "]"
+    import math
+    safe = [n for n in nums if isinstance(n, (int, float)) and math.isfinite(n)]
+    if not safe:
+        safe = [0, 0]
+    return "[" + ",".join(f"{n:.4g}" for n in safe) + "]"
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +241,7 @@ def build_rate_card():
 
 def build_gold_card():
     last, pct = fetch_last_and_chg(GOLD_TICKER)
-    hist = fetch_history_3y(GOLD_TICKER, interval="1wk")  # 주봉 - 급등락(스파이크)이 월봉에 묻히는 것 방지
+    hist = fetch_history_3y(GOLD_TICKER, interval="1wk", period="1y")  # 1년 주봉 - 급등락(스파이크)이 묻히지 않도록
     return {
         "price": f"{last:,.1f}$" if last else "[N/A]",
         "chg": fmt_pct(pct),
