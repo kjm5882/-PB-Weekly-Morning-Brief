@@ -114,7 +114,8 @@
   /* ---------- Sparkline cards (금리/금) ---------- */
   .spark-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px; }
   @media (max-width:700px){ .spark-grid{ grid-template-columns:1fr; } }
-  .spark-card{ border:1px solid var(--ma-rule); padding:11px 13px 9px 13px; }
+  .spark-card{ border:1px solid var(--ma-rule); padding:11px 13px 9px 13px; display:flex; flex-direction:column; }
+  .spark-card .spark-foot{ margin-top:auto; padding-top:8px; }
   .spark-title{ font-family:var(--f-bold); font-size:12.5px; color:var(--ma-blue); margin-bottom:6px; }
   .spark-vals{ display:flex; flex-direction:column; gap:2px; margin-bottom:6px; }
   .spark-vals > div{ display:flex; justify-content:space-between; align-items:baseline; }
@@ -125,14 +126,15 @@
   .spark-foot em{ font-style:normal; color:var(--ma-text-sub); }
   .rate-rows{ display:grid; grid-template-columns:repeat(3,1fr); gap:0; margin-bottom:2px; }
   .rate-row{
-    display:flex; flex-direction:column; gap:4px;
-    padding:0 10px; border-left:1px solid var(--ma-rule);
+    display:flex; flex-direction:column;
+    padding:0 14px; border-left:1px solid var(--ma-rule);
   }
   .rate-row:first-child{ border-left:none; padding-left:0; }
   .rate-row:last-child{ padding-right:0; }
-  .rate-row .rlabel{ font-family:var(--f-light); font-size:11px; color:var(--ma-text-sub); }
-  .rate-row .rval{ font-family:var(--f-bold); font-size:15px; color:var(--ma-text); }
-  .rate-row .rchart{ height:26px; }
+  .rate-row .rlabel{ font-family:var(--f-light); font-size:11px; color:var(--ma-text-sub); margin-bottom:2px; }
+  .rate-row .rval{ font-family:var(--f-bold); font-size:17px; color:var(--ma-text); }
+  .rate-row .rchg{ font-family:var(--f-bold); font-size:11.5px; margin-top:1px; margin-bottom:7px; }
+  .rate-row .rchart{ height:56px; }
 
   .fx-heading{
     font-family:var(--f-bold); font-size:13px; color:var(--ma-text);
@@ -313,99 +315,118 @@
 ===================================================================== */
 
 // [AUTO:WEEK_START] -- update_market_data.py가 실제 이번주 월~금 날짜로 자동 계산합니다.
-const WEEK_LABEL = "2026.08.24(월) ~ 08.28(금)";
+const WEEK_LABEL = "2026.08.11(월) ~ 08.15(금)";
 // [AUTO:WEEK_END]
-const REPORT_DATE = "기준 2026.08.25(Tue) 13:32 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
+const REPORT_DATE = "기준 2026.08.11(월) 08:00 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
 
-// [AI:HERO_START]
+// [AI:HERO_START] -- generate_commentary.py(Claude API)가 매일 자동 생성합니다. 직접 수정해도 다음 실행 시 덮어써집니다.
 const HERO = {
-  headline: "글로벌 긴축 불확실성 속 국내외 증시 동반 하락",
-  sub: "잭슨홀 Warsh 연설·한국은행 금통위·엔비디아 실적이 이번 주 시장 방향 결정"
+  headline: "[이번주 시황을 한 문장으로 요약]",
+  sub: "예) 변동성 확대 속 코스피 박스권 등락, 미 FOMC 앞두고 관망심리 우세"
 };
 // [AI:HERO_END]
 
 const OVERSEAS_DESC = "전주 대비 주요 변동 요인 중심으로 점검";
-// [AUTO:OVERSEAS_START]
+// [AUTO:OVERSEAS_START] -- update_market_data.py가 value/chg/pct를 자동 갱신합니다. comment는 직접 작성하세요.
 const OVERSEAS = [
-  { name: "S&P 500", value: "7,652.9pt", chg: "▼ -1.2%", pct: -1.19, history: [7745,7692,7708,7641,7674,7653], comment: "AI 기대감 유지에도 PCE·잭슨홀 경계감이 고점 대비 차익실현 압력으로 작용하며 소폭 하락" },
-  { name: "나스닥", value: "25,980.2pt", chg: "▼ -2.5%", pct: -2.49, history: [2.664e+04,2.629e+04,2.633e+04,2.607e+04,2.618e+04,2.598e+04], comment: "금리 인상 재개 우려 재부각 속 빅테크·반도체 전반 매도세 확산, 주간 -2.5% 조정" },
-  { name: "다우존스", value: "53,417.2pt", chg: "▼ -0.1%", pct: -0.08, history: [5.346e+04,5.334e+04,5.346e+04,5.276e+04,5.328e+04,5.342e+04], comment: "경기 방어주 상대 버팀으로 낙폭 제한, 3대 지수 중 유일하게 보합권(-0.1%) 유지" },
-  { name: "유럽 STOXX600", value: "654.2pt", chg: "▼ -0.3%", pct: -0.34, history: [656.4,651.9,651.2,650.4,654.2,654.2], comment: "독일 GDP·Ifo 부진 우려와 프랑스 신용등급 재검토 리스크 겹치며 소폭 약세(-0.3%)" },
-  { name: "일본 니케이225", value: "65,817.0pt", chg: "▼ -2.4%", pct: -2.44, history: [6.746e+04,6.533e+04,6.622e+04,6.602e+04,6.553e+04,6.582e+04], comment: "엔화 약세 지속에도 글로벌 위험 회피 확산·반도체 업종 동반 하락으로 -2.4% 급락" },
-  { name: "중국 상해종합", value: "3,876.4pt", chg: "▼ -2.9%", pct: -2.86, history: [3990,3894,3904,3905,3882,3876], comment: "부동산 경기 둔화 및 7월 산업이익 부진 우려에 주요국 중 낙폭 최대(-2.9%)" },
-  { name: "달러인덱스(DXY)", value: "99.1", chg: "▼ -0.6%", pct: -0.58, history: [99.65,98.83,98.9,98.8,99,99.08], comment: "Warsh 발언 불확실성 속 달러 약세 전환, DXY 99.1로 100선 하회 지속" },
-  { name: "WTI 유가", value: "85.3$", chg: "▲ +0.5%", pct: 0.47, history: [84.94,85.83,87.83,87.06,85.01,85.34], comment: "중동 지정학 리스크 및 여름 수요 기대로 주간 유일하게 +0.5% 소폭 반등" }
+  { name: "S&P 500",        value: "[0,000pt]",  chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "나스닥",          value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "다우존스",        value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "유럽 STOXX600",   value: "[000pt]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "일본 니케이225",  value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "중국 상해종합",   value: "[0,000pt]",  chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "달러인덱스(DXY)", value: "[00.0]",     chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "WTI 유가",        value: "[00.0$]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:OVERSEAS_END]
 
 /* ---- 금리 카드 (30Y·10Y·2Y, 각 3개월 일별 추이) ---- */
 // [AUTO:RATE_START]
 const RATE_CARD = {
-  y30: "5.27%",
-  y10: "4.74%",
-  y2: "4.24%",
-  hist30: [5.11,5.1,5.07,5.03,5.01,4.98,4.99,4.99,4.97,4.99,4.97,5.01,5.03,5.01,5.03,4.95,4.97,4.97,4.93,4.93,4.9,4.95,4.94,4.86,4.86,4.87,4.86,4.91,4.97,4.98,4.99,5.05,5.06,5.05,5.06,5.1,5.08,5.08,5.09,5.06,5.11,5.13,5.15,5.17,5.16,5.12,5.09,5.2,5.21,5.27,5.23,5.18,5.17,5.22,5.19,5.25,5.24,5.24,5.21,5.25,5.31,5.28,5.19,5.23,5.27],
-  hist10: [4.57,4.57,4.56,4.5,4.48,4.45,4.45,4.47,4.46,4.49,4.47,4.55,4.56,4.53,4.55,4.45,4.48,4.47,4.43,4.49,4.46,4.51,4.5,4.41,4.4,4.38,4.38,4.44,4.48,4.49,4.48,4.55,4.56,4.54,4.56,4.62,4.58,4.55,4.57,4.55,4.6,4.63,4.67,4.71,4.69,4.65,4.61,4.67,4.68,4.75,4.7,4.63,4.63,4.69,4.65,4.72,4.7,4.68,4.63,4.68,4.72,4.71,4.65,4.69,4.74],
-  hist2: [4.04,4.08,4.13,4.01,4,3.99,3.98,4.05,4.05,4.08,4.05,4.17,4.15,4.13,4.13,4.05,4.09,4.07,4.05,4.2,4.19,4.24,4.16,4.11,4.09,4.07,4.1,4.14,4.17,4.14,4.13,4.19,4.21,4.16,4.21,4.26,4.18,4.13,4.16,4.18,4.21,4.26,4.31,4.37,4.33,4.31,4.26,4.22,4.23,4.28,4.25,4.2,4.18,4.25,4.19,4.25,4.22,4.2,4.15,4.17,4.19,4.19,4.19,4.19,4.24]
+  y30: "[0.00%]",
+  y10: "[0.00%]",
+  y2: "[0.00%]",
+  chg30: "[+0.00%p]",
+  chg10: "[+0.00%p]",
+  chg2: "[+0.00%p]",
+  pct30: 0,
+  pct10: 0,
+  pct2: 0,
+  hist30: [0,0,0,0,0,0,0,0,0,0], // 3개월(일별) — update_market_data.py가 자동 갱신
+  hist10: [0,0,0,0,0,0,0,0,0,0],
+  hist2:  [0,0,0,0,0,0,0,0,0,0]
 };
 // [AUTO:RATE_END]
 
 /* ---- 금(Gold) 카드 : 1년 주간 가격 곡선 (월봉이 아닌 주봉 — 급등락 스파이크가 뭉개지지 않도록) ---- */
 // [AUTO:GOLD_START]
 const GOLD_CARD = {
-  price: "4,688.8$",
-  chg: "▲ +7.4%",
-  pct: 7.39,
-  history: [3474,3613,3649,3672,3775,3881,3976,4190,4118,3982,3999,4088,4077,4218,4213,4300,4361,4529,4314,4490,4588,4976,4714,4951,5022,5059,5230,5146,5052,4570,4492,4652,4762,4858,4722,4630,4720,4556,4521,4560,4337,4215,4145,4079,4175,4104,4013,4068,4049,4341,4380,4624,4689]
+  price: "[2,650.0$]",
+  chg: "[+0.0%]",
+  pct: 0,
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    1850,1870,1900,1890,1920,1950,1980,1970,2000,2030,2010,2040,
+    2070,2100,2080,2110,2150,2180,2200,2230,2210,2250,2280,2300,
+    2330,2360,2340,2380,2410,2440,2460,2490,2510,2540,2560,2600
+  ]
 };
 // [AUTO:GOLD_END]
 
 /* ---- 환율 카드 (원/달러 · 엔/달러 · 유로/달러) : 1년 주간 예시 곡선 ---- */
 // [AUTO:FX_START]
 const FX = [
-  { name: "원/달러 (USD-KRW)", value: "1,383.99", chg: "▼ -2.2%", pct: -2.17, history: [1387,1385,1391,1387,1408,1406,1428,1420,1438,1427,1455,1448,1469,1466,1472,1473,1475,1441,1441,1456,1472,1445,1450,1462,1440,1443,1438,1484,1502,1504,1506,1510,1483,1466,1475,1472,1460,1496,1519,1506,1557,1516,1526,1533,1527,1497,1486,1458,1441,1406,1415,1384,1384] },
-  { name: "엔/달러 (USD-JPY)", value: "159.32", chg: "▼ -0.0%", pct: -0.01, history: [147,147.4,147.7,147.9,149.6,147.4,151.2,150.6,152.8,154,153.4,154.5,156.4,156.2,155.4,155.8,157.7,156.6,156.8,157.9,158.2,155.7,154.7,157.2,152.7,155,156,157.8,159.7,159.2,160.3,159.6,159.3,158.6,159.4,157.1,156.7,158.7,159.2,159.3,160.3,160.2,161.3,161.7,161.3,161.7,162.4,163.8,157.4,157.8,159.3,159,159.3] },
-  { name: "유로/달러 (EUR-USD)", value: "1.17", chg: "▲ +0.7%", pct: 0.66, history: [1.169,1.172,1.174,1.179,1.171,1.174,1.162,1.166,1.163,1.16,1.157,1.163,1.152,1.16,1.165,1.175,1.171,1.178,1.173,1.164,1.161,1.183,1.185,1.182,1.187,1.179,1.182,1.162,1.147,1.159,1.155,1.152,1.173,1.177,1.173,1.173,1.179,1.162,1.161,1.166,1.153,1.158,1.148,1.139,1.144,1.142,1.144,1.138,1.154,1.156,1.157,1.169,1.166] }
+  { name: "원/달러 (USD-KRW)", value: "[1,320.0원]", chg: "[+0.0%]", pct: 0, history: [
+    1290,1295,1300,1310,1305,1315,1320,1330,1325,1335,1340,1330,
+    1320,1310,1315,1325,1335,1340,1345,1330,1320,1330,1340,1350,
+    1345,1335,1325,1330,1340,1345,1350,1355,1345,1335,1330,1320
+  ]},
+  { name: "엔/달러 (USD-JPY)", value: "[150.0엔]", chg: "[-0.0%]", pct: 0, history: [
+    131,133,135,138,140,142,145,147,148,150,149,147,
+    145,143,141,140,142,144,146,148,150,152,151,149,
+    147,145,144,146,148,150,152,151,149,148,150,151
+  ]},
+  { name: "유로/달러 (EUR-USD)", value: "[1.08]", chg: "[+0.0%]", pct: 0, history: [
+    1.06,1.07,1.05,1.04,1.03,1.05,1.07,1.08,1.09,1.07,1.06,1.05,
+    1.06,1.08,1.09,1.10,1.09,1.08,1.07,1.06,1.07,1.08,1.09,1.10,
+    1.09,1.08,1.07,1.08,1.09,1.10,1.09,1.08,1.07,1.08,1.09,1.08
+  ]}
 ];
 // [AUTO:FX_END]
 
 const DOMESTIC_DESC = "지수·수급·업종 흐름을 함께 확인";
-// [AUTO:DOMESTIC_START]
+// [AUTO:DOMESTIC_START] -- pykrx/네이버 스크래핑으로 자동 갱신
 const DOMESTIC_INDEX = [
-  { name: "코스피", value: "6,643.2pt", chg: "▼ -3.3%", pct: -3.3, history: [6870,6471,6853,6913,6697,6643], comment: "외국인 순매도 지속·원화 약세 완화에도 반도체·이차전지 동반 급락으로 주간 -3.3%, 6,643pt. 글로벌 위험자산 회피 심리가 국내 시장 낙폭을 해외 대비 더 크게 확대" },
-  { name: "코스닥", value: "815.2pt", chg: "▼ -2.3%", pct: -2.27, history: [834.2,824.5,840.9,801.9,813.3,815.2], comment: "바이오·소형주 중심 기관 차익실현 출회로 -2.3% 하락. 815pt대에서 지지선 탐색 중이나 방향성 불확실" }
+  { name: "코스피", value: "[2,850pt]", chg: "[▲ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "코스닥", value: "[800pt]",   chg: "[▼ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:DOMESTIC_END]
 
-// [AUTO:FLOW_START]
+// [AUTO:FLOW_START] -- pykrx 투자자별 매매동향(코스피/코스닥 구분)으로 자동 갱신
 const FLOW = [
-  { market: "코스피", foreign: "-36,691억", institution: "-12,901억", individual: "+33,217억" },
-  { market: "코스닥", foreign: "+2,416억", institution: "+249억", individual: "-2,604억" }
+  { market: "코스피", foreign: "[+0,000억]", institution: "[-0,000억]", individual: "[+0,000억]" },
+  { market: "코스닥", foreign: "[+0,000억]", institution: "[-0,000억]", individual: "[+0,000억]" }
 ];
 // [AUTO:FLOW_END]
 
-// [AI:ISSUES_START]
+// [AI:ISSUES_START] -- generate_commentary.py(Claude + 웹검색)가 자동 생성합니다.
 const ISSUES_DESC = "발표 시점 기준 예정된 주요 이벤트 (중요도: 상/중/하)";
 const ISSUES = [
-  { date: "8/25(화)", importance: "mid", flag: "🇺🇸", title: "미국 CB 소비자신뢰지수 발표", desc: "8월 소비자신뢰지수 발표. 최근 소비 둔화 신호 속 수치 부진 시 경기침체 우려 재점화 가능" },
-  { date: "8/26(수)", importance: "high", flag: "🇺🇸", title: "미국 7월 PCE(개인소비지출) 물가 발표", desc: "연준 선호 인플레 지표. 핵심 PCE YoY +3.2% 예상. 수치에 따라 9월 FOMC 금리 경로 재조정 가능성" },
-  { date: "8/26(수)", importance: "high", flag: "🇺🇸", title: "엔비디아(NVDA) 2QFY27 실적 발표", desc: "월가 매출 컨센서스 $93~95B. AI 인프라 수요·블랙웰 실적 확인 여부가 전 세계 반도체·AI 섹터 방향성 결정" },
-  { date: "8/26(수)", importance: "mid", flag: "🇺🇸", title: "미국 2Q GDP 2차 추정치 발표", desc: "1차 추정치 연율 +1.5%에서 상·하향 여부 주목. 수정폭 크면 연준 9월 정책 결정에 추가 변수" },
-  { date: "8/27(목)", importance: "high", flag: "🇰🇷", title: "한국은행 금융통화위원회 기준금리 결정", desc: "현 기준금리 2.75%. 바클레이즈 등 시장 컨센서스 동결 전망. 인상 소수의견 수가 향후 경로 가늠자" },
-  { date: "8/28(금)", importance: "high", flag: "🇺🇸", title: "잭슨홀 심포지엄 – Warsh 연준 의장 기조연설", desc: "신임 의장 취임 후 첫 잭슨홀 연설. 포워드 가이던스 축소 기조 속 매파·비둘기 어조 모두 시장 충격 가능" }
+  { date: "8/12(화)", importance: "mid",  flag: "🇰🇷", title: "[경제지표/이벤트명]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/13(수)", importance: "high", flag: "🇺🇸", title: "[FOMC / 금통위 등]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/14(목)", importance: "mid",  flag: "🇰🇷", title: "[주요 기업 실적발표]",  desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/15(금)", importance: "low",  flag: "🇺🇸", title: "[기타 이슈]",          desc: "[코멘트 및 시장 영향 포인트]" }
 ];
 // [AI:ISSUES_END]
 
-// [AI:IMPLICATIONS_START]
+// [AI:IMPLICATIONS_START] -- generate_commentary.py가 business_context.md 내용을 바탕으로 자동 생성합니다.
 const IMPL_HEADLINE = "시황이 우리 업무에 주는 시사점";
-const IMPL_DESC = "다이렉트 고객 · 카이로스 멤버십 · 세일즈 포인트로 연결";
 const IMPLICATIONS = [
-  { cat: "리스크관리", text: "코스피 주간 -3.3%, 나스닥 -2.5% 등 변동성 확대. 잭슨홀 연설(8/28)·금통위(8/27) 결과에 따라 추가 급락 시 카이로스 멤버십 고객의 반대매매·미수 리스크 가중 우려", action: "카이로스 멤버십 3대 모니터링 체계(반대매매·이탈·미수) 일일 점검 강도 상향. 특히 반도체·이차전지 집중 보유 고객 선제 알림 발송 검토" },
-  { cat: "세일즈 기회", text: "달러인덱스 약세(-0.6%)·금 가격 급등(+7.4%, $4,688)·채권 금리 장단기 역전 부재로 분산 자산(금·채권·해외자산)의 포트폴리오 내 역할 부각", action: "금 관련 랩·해외채권 편입 Best Selection 국내자문형랩 세일즈 포인트 정리. 세미나 후속 마케팅에서 '인플레 헷지 자산 비중 확대' 메시지로 상담 예약 연계" },
-  { cat: "고객 커뮤니케이션", text: "코스피 -3.3% 급락에 대한 다이렉트 고객 문의 급증 예상. 특히 '왜 한국 낙폭이 더 크냐'는 질문과 잭슨홀·금통위 결과에 대한 해석 요청 집중 가능성", action: "이번 주 내 선제 안내 메시지 발송: ①국내 낙폭 확대 배경(외국인 매도+원화 변동) 간략 설명, ②잭슨홀·금통위 주요 일정 안내, ③단기 변동성 대응법(분할매수·리밸런싱 원칙) 포함" },
-  { cat: "자산배분 시사점", text: "글로벌 증시 동반 하락 속 금(+7.4%)·WTI(+0.5%) 실물자산 강세, 원/달러 환율 -2.2% 하락(원화 강세 전환) 진행. 주식 비중 과다 포트폴리오의 리밸런싱 필요성 점검 시점", action: "VIP+·다이아몬드 고객 대상 Sage컨설팅팀 연계 포트폴리오 점검 권유. 국내 주식 비중 축소·금/대체자산 비중 확대 방향 자문 연결 우선 검토" }
+  { cat: "리스크관리", text: "[변동성 확대 시 카이로스 멤버십 반대매매·이탈 모니터링 강화 필요 여부]", action: "3대 모니터링 체계 점검 강화" },
+  { cat: "세일즈 기회", text: "[금리/섹터 이슈와 연계한 랩상품·상품 세일즈 포인트]", action: "Best Selection 랩상품 연계 제안" },
+  { cat: "고객 커뮤니케이션", text: "[이번주 시황을 다이렉트 고객에게 어떻게 안내할지]", action: "고객 안내 메시지 방향 점검" },
+  { cat: "자산배분 시사점", text: "[시황이 고객 포트폴리오/자산배분에 주는 함의]", action: "리밸런싱 필요성 검토" }
 ];
-const IMPL_HIGHLIGHT = "이번 주 핵심: 잭슨홀 Warsh 연설·금통위 결과에 따른 변동성 확대 대비 — 카이로스 모니터링 강화와 VIP+ 고객 리밸런싱 상담이 최우선 영업 과제";
+const IMPL_HIGHLIGHT = "[이번주 가장 중요한 연계 포인트 한 줄 결론]";
 // [AI:IMPLICATIONS_END]
 
 /* ===================================================================== */
@@ -519,20 +540,24 @@ function renderImplCard(c){
 
 function renderRateCard(){
   const rows = [
-    { label: "30년물", val: RATE_CARD.y30, hist: RATE_CARD.hist30 },
-    { label: "10년물", val: RATE_CARD.y10, hist: RATE_CARD.hist10 },
-    { label: "2년물",  val: RATE_CARD.y2,  hist: RATE_CARD.hist2  },
+    { label: "30년물", val: RATE_CARD.y30, chg: RATE_CARD.chg30, pct: RATE_CARD.pct30, hist: RATE_CARD.hist30 },
+    { label: "10년물", val: RATE_CARD.y10, chg: RATE_CARD.chg10, pct: RATE_CARD.pct10, hist: RATE_CARD.hist10 },
+    { label: "2년물",  val: RATE_CARD.y2,  chg: RATE_CARD.chg2,  pct: RATE_CARD.pct2,  hist: RATE_CARD.hist2  },
   ];
-  const rowsHtml = rows.map(r => `
+  const rowsHtml = rows.map(r => {
+    const color = r.pct >= 0 ? "var(--ma-warn)" : "var(--ma-blue-title)";
+    return `
     <div class="rate-row">
       <div class="rlabel">${r.label}</div>
       <div class="rval">${r.val}</div>
-      <div class="rchart">${sparkline(r.hist && r.hist.length > 1 ? r.hist : [0,0], { color: "var(--ma-chart-black)", height: 26 })}</div>
-    </div>`).join("");
+      <div class="rchg" style="color:${color}">${r.chg}</div>
+      <div class="rchart">${sparkline(r.hist && r.hist.length > 1 ? r.hist : [0,0], { color: "var(--ma-chart-black)", height: 56 })}</div>
+    </div>`;
+  }).join("");
   return `<div class="spark-card">
       <div class="spark-title">미 국채금리 (30Y · 10Y · 2Y)</div>
       <div class="rate-rows">${rowsHtml}</div>
-      <div class="spark-foot">각 3개월 일별 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
+      <div class="spark-foot">각 3개월 일별 추이 · 전주 대비(%p) · <em>예시 데이터, 실제 수치로 교체</em></div>
     </div>`;
 }
 
