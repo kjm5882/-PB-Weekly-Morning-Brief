@@ -224,15 +224,36 @@ def build_rate_card():
     y10 = s10[-1][1] if s10 else None
     y2 = s2[-1][1] if s2 else None
 
+    def week_chg(series):
+        # 최근 값 vs 약 5영업일 전 값의 차이(%p) - 지난주 대비
+        vals = [v for _, v in series]
+        if len(vals) < 6:
+            return None
+        return round(vals[-1] - vals[-6], 2)
+
     def last_n_values(series, n=65):
         # FRED는 영업일 기준 일별 데이터라, 최근 ~65개면 대략 3개월치에 해당
         vals = [v for _, v in series]
         return vals[-n:] if len(vals) > n else vals
 
+    def fmt_chg_bp(chg):
+        if chg is None:
+            return "[N/A]"
+        sign = "+" if chg >= 0 else ""
+        return f"{sign}{chg:.2f}%p"
+
+    c30, c10, c2 = week_chg(s30), week_chg(s10), week_chg(s2)
+
     return {
         "y30": f"{y30:.2f}%" if y30 is not None else "[N/A]",
         "y10": f"{y10:.2f}%" if y10 is not None else "[N/A]",
         "y2": f"{y2:.2f}%" if y2 is not None else "[N/A]",
+        "chg30": fmt_chg_bp(c30),
+        "chg10": fmt_chg_bp(c10),
+        "chg2": fmt_chg_bp(c2),
+        "pct30": c30 if c30 is not None else 0,
+        "pct10": c10 if c10 is not None else 0,
+        "pct2": c2 if c2 is not None else 0,
         "hist30": last_n_values(s30) or [0] * 10,
         "hist10": last_n_values(s10) or [0] * 10,
         "hist2": last_n_values(s2) or [0] * 10,
@@ -389,6 +410,12 @@ def build_rate_js(rc):
         f'  y30: "{rc["y30"]}",\n'
         f'  y10: "{rc["y10"]}",\n'
         f'  y2: "{rc["y2"]}",\n'
+        f'  chg30: "{rc["chg30"]}",\n'
+        f'  chg10: "{rc["chg10"]}",\n'
+        f'  chg2: "{rc["chg2"]}",\n'
+        f'  pct30: {rc["pct30"]},\n'
+        f'  pct10: {rc["pct10"]},\n'
+        f'  pct2: {rc["pct2"]},\n'
         f'  hist30: {js_array(rc["hist30"])},\n'
         f'  hist10: {js_array(rc["hist10"])},\n'
         f'  hist2: {js_array(rc["hist2"])}\n'
