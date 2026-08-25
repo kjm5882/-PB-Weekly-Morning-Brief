@@ -78,9 +78,9 @@ def build_data_summary(html: str) -> dict:
         "overseas": overseas,
         "domestic": domestic,
         "rate": {
+            "y30": parse_simple_kv(rate_block, "y30"),
             "y10": parse_simple_kv(rate_block, "y10"),
             "y2": parse_simple_kv(rate_block, "y2"),
-            "spread": parse_simple_kv(rate_block, "spreadLabel"),
         },
         "gold": {
             "price": parse_simple_kv(gold_block, "price"),
