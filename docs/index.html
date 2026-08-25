@@ -123,6 +123,15 @@
   .spark-chart{ margin:3px 0 4px 0; }
   .spark-foot{ font-family:var(--f-light); font-size:10.5px; color:var(--ma-text-sub); }
   .spark-foot em{ font-style:normal; color:var(--ma-text-sub); }
+  .rate-rows{ display:flex; flex-direction:column; margin-bottom:2px; }
+  .rate-row{
+    display:grid; grid-template-columns:44px 46px 1fr; align-items:center;
+    gap:8px; padding:5px 0; border-bottom:1px solid var(--ma-rule);
+  }
+  .rate-row:last-child{ border-bottom:none; }
+  .rate-row .rlabel{ font-family:var(--f-light); font-size:11px; color:var(--ma-text-sub); }
+  .rate-row .rval{ font-family:var(--f-bold); font-size:13px; color:var(--ma-text); }
+  .rate-row .rchart{ height:22px; }
 
   .fx-heading{
     font-family:var(--f-bold); font-size:13px; color:var(--ma-text);
@@ -303,98 +312,112 @@
 ===================================================================== */
 
 // [AUTO:WEEK_START] -- update_market_data.py가 실제 이번주 월~금 날짜로 자동 계산합니다.
-const WEEK_LABEL = "2026.08.24(월) ~ 08.28(금)";
+const WEEK_LABEL = "2026.08.11(월) ~ 08.15(금)";
 // [AUTO:WEEK_END]
-const REPORT_DATE = "기준 2026.08.24(Mon) 07:15 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
+const REPORT_DATE = "기준 2026.08.11(월) 08:00 갱신"; // 데이터 수집 실패 시 예: "전일(08/08) 종가 기준"
 
-// [AI:HERO_START]
+// [AI:HERO_START] -- generate_commentary.py(Claude API)가 매일 자동 생성합니다. 직접 수정해도 다음 실행 시 덮어써집니다.
 const HERO = {
-  headline: "잭슨홀·PCE·금통위 3대 이벤트, 방향성 결판 주",
-  sub: "Fed 워시 의장 첫 잭슨홀 연설(8/28)·한은 금통위(8/27)·미국 PCE(8/26)가 집중되며 금리·환율·증시 변동성이 동시에 분출될 수 있는 한 주"
+  headline: "[이번주 시황을 한 문장으로 요약]",
+  sub: "예) 변동성 확대 속 코스피 박스권 등락, 미 FOMC 앞두고 관망심리 우세"
 };
 // [AI:HERO_END]
 
 const OVERSEAS_DESC = "전주 대비 주요 변동 요인 중심으로 점검";
-// [AUTO:OVERSEAS_START]
+// [AUTO:OVERSEAS_START] -- update_market_data.py가 value/chg/pct를 자동 갱신합니다. comment는 직접 작성하세요.
 const OVERSEAS = [
-  { name: "S&P 500", value: "7,674.4pt", chg: "▼ -1.4%", pct: -1.43, history: [7786,7745,7692,7708,7641,7674], comment: "미 장기금리 상승·AI 밸류에이션 부담 겹쳐 주간 -1.4% 하락, 잭슨홀 전 포지션 관망 심화" },
-  { name: "나스닥", value: "26,180.5pt", chg: "▼ -2.1%", pct: -2.05, history: [2.673e+04,2.664e+04,2.629e+04,2.633e+04,2.607e+04,2.618e+04], comment: "AI·반도체 섹터 고평가 우려 부각, 주간 -2.1%로 주요 지수 중 낙폭 최대" },
-  { name: "다우존스", value: "53,277.0pt", chg: "▼ -0.8%", pct: -0.85, history: [5.373e+04,5.346e+04,5.334e+04,5.346e+04,5.276e+04,5.328e+04], comment: "방어주 중심 저항으로 낙폭 -0.8%로 상대적 선방" },
-  { name: "유럽 STOXX600", value: "654.2pt", chg: "▼ -0.6%", pct: -0.56, history: [657.9,656.4,651.9,651.2,650.4,654.2], comment: "유로화 강세(+0.9%)에도 글로벌 금리 불안으로 -0.6% 소폭 약세" },
-  { name: "일본 니케이225", value: "66,016.4pt", chg: "▼ -3.9%", pct: -3.93, history: [6.871e+04,6.922e+04,6.746e+04,6.533e+04,6.622e+04,6.602e+04], comment: "엔화 강세·미 금리 상승 충격 겹쳐 주간 -3.9%, 주요국 중 낙폭 가장 컸음" },
-  { name: "중국 상해종합", value: "3,905.2pt", chg: "▼ -0.6%", pct: -0.56, history: [3927,3983,3990,3894,3904,3905], comment: "중반 3,990pt까지 상승했다가 이익실현 매물에 주간 -0.6% 보합권 마감" },
-  { name: "달러인덱스(DXY)", value: "98.9", chg: "▼ -0.8%", pct: -0.79, history: [99.64,99.65,98.83,98.9,98.8,98.85], comment: "잭슨홀 앞둔 불확실성에 98.9선으로 후퇴, 주간 -0.8% 달러 약세" },
-  { name: "WTI 유가", value: "87.1$", chg: "▲ +3.0%", pct: 3.03, history: [84.5,84.94,85.83,87.83,87.06,87.06], comment: "중동 긴장·공급 우려 재부각으로 주간 +3.0% 급등, 87달러 돌파" }
+  { name: "S&P 500",        value: "[0,000pt]",  chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "나스닥",          value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "다우존스",        value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "유럽 STOXX600",   value: "[000pt]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "일본 니케이225",  value: "[00,000pt]", chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "중국 상해종합",   value: "[0,000pt]",  chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "달러인덱스(DXY)", value: "[00.0]",     chg: "[+0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "WTI 유가",        value: "[00.0$]",    chg: "[-0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:OVERSEAS_END]
 
-/* ---- 금리 카드 (10Y·2Y·장단기 스프레드) : 3년 월간 스프레드(10Y-2Y) 예시 곡선, 0 기준선 ---- */
+/* ---- 금리 카드 (30Y·10Y·2Y, 각 3개월 일별 추이) ---- */
 // [AUTO:RATE_START]
 const RATE_CARD = {
-  y10: "4.69%",
-  y2: "4.19%",
-  spreadValue: 0.5,
-  spreadLabel: "+0.50%p",
-  history: [-0.44,-0.19,-0.36,-0.35,-0.28,-0.39,-0.39,-0.35,-0.38,-0.35,-0.2,0,0.15,0.12,0.05,0.33,0.36,0.25,0.34,0.57,0.52,0.52,0.43,0.64,0.56,0.51,0.55,0.71,0.74,0.59,0.51,0.52,0.47,0.3,0.47,0.5]
+  y30: "[0.00%]",
+  y10: "[0.00%]",
+  y2: "[0.00%]",
+  hist30: [0,0,0,0,0,0,0,0,0,0], // 3개월(일별) — update_market_data.py가 자동 갱신
+  hist10: [0,0,0,0,0,0,0,0,0,0],
+  hist2:  [0,0,0,0,0,0,0,0,0,0]
 };
 // [AUTO:RATE_END]
 
-/* ---- 금(Gold) 카드 : 3년 월간 가격 예시 곡선 (반도체중소형주 대시보드와 동일한 간이차트 방식) ---- */
+/* ---- 금(Gold) 카드 : 3년 주간 가격 곡선 (월봉이 아닌 주봉 — 급등락 스파이크가 뭉개지지 않도록) ---- */
 // [AUTO:GOLD_START]
 const GOLD_CARD = {
-  price: "4,680.6$",
-  chg: "▲ +5.9%",
-  pct: 5.95,
-  history: [1848,2038,2062,2048,2046,2217,2291,2323,2328,2426,2494,2738,2657,2812,2837,3123,3305,3289,3293,3474,3841,3982,4218,4326,4714,4615,4560,4023,4049,4681]
+  price: "[2,650.0$]",
+  chg: "[+0.0%]",
+  pct: 0,
+  history: [ // 3년(36개월) — update_market_data.py가 자동 갱신
+    1850,1870,1900,1890,1920,1950,1980,1970,2000,2030,2010,2040,
+    2070,2100,2080,2110,2150,2180,2200,2230,2210,2250,2280,2300,
+    2330,2360,2340,2380,2410,2440,2460,2490,2510,2540,2560,2600
+  ]
 };
 // [AUTO:GOLD_END]
 
-/* ---- 환율 카드 (원/달러 · 엔/달러 · 유로/달러) : 3년 월간 예시 곡선 ---- */
+/* ---- 환율 카드 (원/달러 · 엔/달러 · 유로/달러) : 1년 주간 예시 곡선 ---- */
 // [AUTO:FX_START]
 const FX = [
-  { name: "원/달러 (USD-KRW)", value: "1,386.09", chg: "▼ -2.1%", pct: -2.07, history: [1352,1348,1288,1294,1327,1333,1345,1375,1376,1380,1384,1337,1309,1379,1400,1467,1442,1450,1469,1431,1382,1364,1393,1387,1399,1424,1466,1438,1450,1432,1516,1487,1506,1542,1421,1386] },
-  { name: "엔/달러 (USD-JPY)", value: "158.89", chg: "▼ -0.2%", pct: -0.21, history: [149.4,149.1,147,141,147.4,150.7,151.3,156.3,157,160.9,152.7,146.2,142.8,153.2,149.7,157,154.1,150,149.6,142.3,144,144.5,149.2,147,148.6,153.9,156.2,156.4,154.7,155.9,159.8,160.2,159.3,161.9,160.2,158.9] },
-  { name: "유로/달러 (EUR-USD)", value: "1.17", chg: "▲ +0.9%", pct: 0.94, history: [1.059,1.062,1.097,1.106,1.084,1.084,1.08,1.072,1.083,1.072,1.082,1.106,1.117,1.086,1.058,1.041,1.04,1.04,1.082,1.139,1.135,1.173,1.143,1.169,1.173,1.157,1.16,1.175,1.185,1.18,1.146,1.169,1.166,1.142,1.152,1.168] }
+  { name: "원/달러 (USD-KRW)", value: "[1,320.0원]", chg: "[+0.0%]", pct: 0, history: [
+    1290,1295,1300,1310,1305,1315,1320,1330,1325,1335,1340,1330,
+    1320,1310,1315,1325,1335,1340,1345,1330,1320,1330,1340,1350,
+    1345,1335,1325,1330,1340,1345,1350,1355,1345,1335,1330,1320
+  ]},
+  { name: "엔/달러 (USD-JPY)", value: "[150.0엔]", chg: "[-0.0%]", pct: 0, history: [
+    131,133,135,138,140,142,145,147,148,150,149,147,
+    145,143,141,140,142,144,146,148,150,152,151,149,
+    147,145,144,146,148,150,152,151,149,148,150,151
+  ]},
+  { name: "유로/달러 (EUR-USD)", value: "[1.08]", chg: "[+0.0%]", pct: 0, history: [
+    1.06,1.07,1.05,1.04,1.03,1.05,1.07,1.08,1.09,1.07,1.06,1.05,
+    1.06,1.08,1.09,1.10,1.09,1.08,1.07,1.06,1.07,1.08,1.09,1.10,
+    1.09,1.08,1.07,1.08,1.09,1.10,1.09,1.08,1.07,1.08,1.09,1.08
+  ]}
 ];
 // [AUTO:FX_END]
 
 const DOMESTIC_DESC = "지수·수급·업종 흐름을 함께 확인";
-// [AUTO:DOMESTIC_START]
+// [AUTO:DOMESTIC_START] -- pykrx/네이버 스크래핑으로 자동 갱신
 const DOMESTIC_INDEX = [
-  { name: "코스피", value: "6,913.0pt", chg: "▲ +1.5%", pct: 1.46, history: [6813,6978,6870,6471,6853,6913], comment: "주간 +1.5% 상승. 대형 반도체주(삼성·SK하이닉스) 매수세 유입·주주환원 기대감이 지수 방어 역할. 단, 코스닥 급락과의 극명한 양극화가 두드러짐" },
-  { name: "코스닥", value: "801.9pt", chg: "▼ -6.9%", pct: -6.9, history: [861.4,864.6,834.2,824.5,840.9,801.9], comment: "주간 -6.9% 급락. 8/21 장중 매도 사이드카 발동(올해 14번째)·800선 붕괴. 미 장기금리 상승·유가 급등에 따른 위험선호 후퇴와 전날 상승분 차익실현 매물이 복합 작용" }
+  { name: "코스피", value: "[2,850pt]", chg: "[▲ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" },
+  { name: "코스닥", value: "[800pt]",   chg: "[▼ 0.0%]", pct: 0, comment: "[등락 배경 한 줄 코멘트]" }
 ];
 // [AUTO:DOMESTIC_END]
 
-// [AUTO:FLOW_START]
+// [AUTO:FLOW_START] -- pykrx 투자자별 매매동향(코스피/코스닥 구분)으로 자동 갱신
 const FLOW = [
-  { market: "코스피", foreign: "-1,760억", institution: "+2,481억", individual: "-11,652억" },
-  { market: "코스닥", foreign: "-2,837억", institution: "-3,462억", individual: "+6,236억" }
+  { market: "코스피", foreign: "[+0,000억]", institution: "[-0,000억]", individual: "[+0,000억]" },
+  { market: "코스닥", foreign: "[+0,000억]", institution: "[-0,000억]", individual: "[+0,000억]" }
 ];
 // [AUTO:FLOW_END]
 
-// [AI:ISSUES_START]
+// [AI:ISSUES_START] -- generate_commentary.py(Claude + 웹검색)가 자동 생성합니다.
 const ISSUES_DESC = "발표 시점 기준 예정된 주요 이벤트 (중요도: 상/중/하)";
 const ISSUES = [
-  { date: "8/25(화)", importance: "mid", flag: "🇺🇸", title: "미국 8월 소비자신뢰지수(CB) 발표", desc: "Conference Board 소비자신뢰지수 발표. 전주 소비·소매 지표 부진 이후 수요 경기 점검 지표로 주목" },
-  { date: "8/25(화)", importance: "mid", flag: "🇺🇸", title: "미국 7월 신규주택판매 발표", desc: "금리 상승 환경에서 주택시장 둔화 정도를 가늠하는 지표. 30년 모기지금리 영향으로 전월 대비 추가 둔화 예상" },
-  { date: "8/26(수)", importance: "high", flag: "🇺🇸", title: "미국 7월 PCE 물가·2Q GDP 2차 추정치 발표", desc: "Core PCE(전월비 +0.2% 예상)와 2분기 GDP 2차 추정치 동시 발표. 잭슨홀 연설의 선행 지표로 시장 반응이 예민할 전망" },
-  { date: "8/27(목)", importance: "high", flag: "🇰🇷", title: "한국은행 금융통화위원회 기준금리 결정", desc: "현 기준금리 2.75%(7월 인상 단행 이후). 2회 연속 인상 여부·수정 경제전망(GDP 성장률 상향 가능성) 주목. 동결 전망이 우세하나 긴축 기조 유지 발언 시 채권금리 영향 예상" },
-  { date: "8/27(목)", importance: "high", flag: "🇺🇸", title: "잭슨홀 심포지엄 개막 (8/27~29)", desc: "Fed 워시 의장 취임 후 첫 잭슨홀 연설(8/28 오전 10시 ET). 9월 FOMC(9/16) 금리 인상 여부 힌트 여부가 핵심. 워시 의장은 포워드가이던스 축소 방침 표명으로 발언 해석 난이도 높음" },
-  { date: "8/28(금)", importance: "high", flag: "🇺🇸", title: "Fed 워시 의장 잭슨홀 기조연설 (한국시간 밤 11시)", desc: "취임 첫 잭슨홀 연설. 9월 금리 인상 확률(약 1/3 수준)에 대한 시장 방향 결정적 역할. 매파/비둘기 톤 모두 글로벌 자산가격에 즉각 영향 예상" }
+  { date: "8/12(화)", importance: "mid",  flag: "🇰🇷", title: "[경제지표/이벤트명]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/13(수)", importance: "high", flag: "🇺🇸", title: "[FOMC / 금통위 등]",   desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/14(목)", importance: "mid",  flag: "🇰🇷", title: "[주요 기업 실적발표]",  desc: "[코멘트 및 시장 영향 포인트]" },
+  { date: "8/15(금)", importance: "low",  flag: "🇺🇸", title: "[기타 이슈]",          desc: "[코멘트 및 시장 영향 포인트]" }
 ];
 // [AI:ISSUES_END]
 
-// [AI:IMPLICATIONS_START]
+// [AI:IMPLICATIONS_START] -- generate_commentary.py가 business_context.md 내용을 바탕으로 자동 생성합니다.
 const IMPL_HEADLINE = "시황이 우리 업무에 주는 시사점";
-const IMPL_DESC = "다이렉트 고객 · 카이로스 멤버십 · 세일즈 포인트로 연결";
 const IMPLICATIONS = [
-  { cat: "리스크관리", text: "코스닥 주간 -6.9% 급락·매도 사이드카 발동(800선 붕괴)으로 카이로스멤버십 고객의 미수·반대매매 리스크 고조. 잭슨홀(8/28) 연설과 한은 금통위(8/27) 결과에 따라 추가 변동성 확대 가능성", action: "이번 주 카이로스멤버스 이탈·미수·반대매매 3대 일일 모니터링 강도 상향. 특히 코스닥 비중 높은 고객군 집중 점검" },
-  { cat: "세일즈 기회", text: "금(Gold) 주간 +5.9%(4,680.6$) 강세·WTI 유가 +3.0% 동반 급등으로 실물자산 헤지 수요 증가. 유로화 강세(+0.9%)와 달러 약세(-0.8%)는 해외분산 상품 관심 제고. 코스피 대형주 주주환원 테마도 부각", action: "Best Selection 국내자문형랩 중 실물자산·배당 테마 상품 세일즈 포인트 강화. 온라인세미나 후속 마케팅 시 글로벌 자산배분·금 ETF 편입 상품 소개 병행" },
-  { cat: "고객 커뮤니케이션", text: "코스닥 급락(-6.9%)과 코스피 상승(+1.5%) 괴리에 고객 혼란 및 VOC 급증 예상. 잭슨홀·금통위 이중 이벤트로 주 후반 추가 변동성 우려 문의도 증가 가능", action: "국내 시장 양극화(코스피·코스닥 차별화) 배경을 선제 안내. 잭슨홀 연설·금통위 결과 직후 신속 해설 메시지 발송 준비. 다이렉트 고객 대상 '이번 주 체크포인트' 안내 콘텐츠 사전 준비" },
-  { cat: "자산배분 시사점", text: "미 국채 10년 4.69%·2년 4.19%(스프레드 +0.50%p) 정상화 구간 진입. 금리 불확실성 확대 속 금·원자재 방어 역할 재부각. 원/달러 1,386원으로 달러 약세 전환 시 해외자산 환차익 축소 가능성 점검 필요", action: "VIP+·다이아몬드 등급 고객 포트폴리오 내 장기채 비중 점검. 금·실물자산 편입 비중 상향 검토 제안. Sage컨설팅팀 연계 자산배분 상담 유도 강화" }
+  { cat: "리스크관리", text: "[변동성 확대 시 카이로스 멤버십 반대매매·이탈 모니터링 강화 필요 여부]", action: "3대 모니터링 체계 점검 강화" },
+  { cat: "세일즈 기회", text: "[금리/섹터 이슈와 연계한 랩상품·상품 세일즈 포인트]", action: "Best Selection 랩상품 연계 제안" },
+  { cat: "고객 커뮤니케이션", text: "[이번주 시황을 다이렉트 고객에게 어떻게 안내할지]", action: "고객 안내 메시지 방향 점검" },
+  { cat: "자산배분 시사점", text: "[시황이 고객 포트폴리오/자산배분에 주는 함의]", action: "리밸런싱 필요성 검토" }
 ];
-const IMPL_HIGHLIGHT = "코스닥 급락·잭슨홀 연설 앞 고변동성 구간 — 카이로스 모니터링 즉각 강화 및 고객 선제 안내가 이번 주 최우선 과제";
+const IMPL_HIGHLIGHT = "[이번주 가장 중요한 연계 포인트 한 줄 결론]";
 // [AI:IMPLICATIONS_END]
 
 /* ===================================================================== */
@@ -507,17 +530,21 @@ function renderImplCard(c){
 }
 
 function renderRateCard(){
-  const spreadPositive = RATE_CARD.spreadValue >= 0;
-  const spreadColor = spreadPositive ? "var(--ma-warn)" : "var(--ma-blue-title)";
+  const rows = [
+    { label: "30년물", val: RATE_CARD.y30, hist: RATE_CARD.hist30 },
+    { label: "10년물", val: RATE_CARD.y10, hist: RATE_CARD.hist10 },
+    { label: "2년물",  val: RATE_CARD.y2,  hist: RATE_CARD.hist2  },
+  ];
+  const rowsHtml = rows.map(r => `
+    <div class="rate-row">
+      <div class="rlabel">${r.label}</div>
+      <div class="rval">${r.val}</div>
+      <div class="rchart">${sparkline(r.hist && r.hist.length > 1 ? r.hist : [0,0], { color: "var(--ma-chart-black)", height: 22 })}</div>
+    </div>`).join("");
   return `<div class="spark-card">
-      <div class="spark-title">미 국채금리 (10Y · 2Y)</div>
-      <div class="spark-vals">
-        <div><span class="spv-label">10년물</span><span class="spv-num">${RATE_CARD.y10}</span></div>
-        <div><span class="spv-label">2년물</span><span class="spv-num">${RATE_CARD.y2}</span></div>
-        <div><span class="spv-label">장단기 스프레드(10Y-2Y)</span><span class="spv-num" style="color:${spreadColor}">${RATE_CARD.spreadLabel}</span></div>
-      </div>
-      <div class="spark-chart">${sparkline(RATE_CARD.history, { baseline: 0, color: "var(--ma-chart-black)" })}</div>
-      <div class="spark-foot">3년 스프레드 추이 · 0 기준선 아래 = 장단기 금리차 역전 · <em>예시 데이터, 실제 수치로 교체</em></div>
+      <div class="spark-title">미 국채금리 (30Y · 10Y · 2Y)</div>
+      <div class="rate-rows">${rowsHtml}</div>
+      <div class="spark-foot">각 3개월 일별 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
     </div>`;
 }
 
@@ -543,7 +570,7 @@ function renderFxCard(f){
         <div><span class="spv-label">전주 대비</span><span class="spv-num" style="color:${color}">${f.chg}</span></div>
       </div>
       <div class="spark-chart">${sparkline(f.history, { color: "var(--ma-chart-black)" })}</div>
-      <div class="spark-foot">3년 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
+      <div class="spark-foot">1년 추이 · <em>예시 데이터, 실제 수치로 교체</em></div>
     </div>`;
 }
 
